@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,13 +16,17 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Badge
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -29,6 +34,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -52,9 +61,12 @@ fun TimelineScreen(
     val mediaItems by viewModel.mediaItems.collectAsStateWithLifecycle()
     val mediaCount by viewModel.mediaCount.collectAsStateWithLifecycle()
     val indexedCount by viewModel.indexedCount.collectAsStateWithLifecycle()
+    val isPipelineActive by viewModel.isPipelineActive.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
 
     val timelineEntries = remember(mediaItems) { buildTimelineEntries(mediaItems) }
     val isIndexingInProgress = indexedCount < mediaCount && mediaCount > 0
+    val isScanning = mediaCount == 0 && isPipelineActive
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -63,70 +75,88 @@ fun TimelineScreen(
                 title = "Timeline",
                 actions = {
                     if (isIndexingInProgress) {
-                        Badge(
+                        Text(
+                            text = "Indexing $indexedCount/$mediaCount",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(end = 16.dp),
-                            containerColor = MaterialTheme.colorScheme.primary,
-                        ) {
-                            Text(
-                                text = "Indexing $indexedCount/$mediaCount",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        }
+                        )
                     }
                 },
             )
         },
     ) { innerPadding ->
-        if (mediaCount == 0) {
-            EmptyState(
-                title = "No media yet",
-                description = "Grant photo access and run indexing from Settings to see your library here.",
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-            )
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 120.dp),
-                contentPadding = PaddingValues(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-            ) {
-                items(
-                    items = timelineEntries,
-                    key = { entry ->
-                        when (entry) {
-                            is TimelineEntry.DateHeader -> "header_${entry.dateKey}"
-                            is TimelineEntry.Media -> entry.item.id
-                        }
-                    },
-                    span = { entry ->
-                        when (entry) {
-                            is TimelineEntry.DateHeader -> GridItemSpan(maxLineSpan)
-                            is TimelineEntry.Media -> GridItemSpan(1)
-                        }
-                    },
-                ) { entry ->
-                    when (entry) {
-                        is TimelineEntry.DateHeader -> {
-                            Text(
-                                text = entry.label,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 4.dp, vertical = 8.dp),
-                            )
-                        }
-                        is TimelineEntry.Media -> {
-                            TimelineMediaItem(
-                                mediaItem = entry.item,
-                                onClick = { onMediaClick(entry.item.id.toString()) },
-                            )
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                if (isScanning || (isPipelineActive && mediaCount == 0)) {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                when {
+                    isScanning -> {
+                        EmptyState(
+                            title = "Scanning your gallery…",
+                            description = "We're finding photos and videos on your device. This may take a moment.",
+                            icon = Icons.Outlined.PhotoLibrary,
+                        )
+                    }
+                    mediaCount == 0 -> {
+                        EmptyState(
+                            title = "No photos found",
+                            description = "Grant access in Settings to see your library here.",
+                            icon = Icons.Outlined.Settings,
+                            animateIcon = false,
+                        )
+                    }
+                    else -> {
+                        LazyVerticalGrid(
+                            columns = GridCells.Adaptive(minSize = 120.dp),
+                            contentPadding = PaddingValues(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            items(
+                                items = timelineEntries,
+                                key = { entry ->
+                                    when (entry) {
+                                        is TimelineEntry.DateHeader -> "header_${entry.dateKey}"
+                                        is TimelineEntry.Media -> entry.item.id
+                                    }
+                                },
+                                span = { entry ->
+                                    when (entry) {
+                                        is TimelineEntry.DateHeader -> GridItemSpan(maxLineSpan)
+                                        is TimelineEntry.Media -> GridItemSpan(1)
+                                    }
+                                },
+                            ) { entry ->
+                                when (entry) {
+                                    is TimelineEntry.DateHeader -> {
+                                        Text(
+                                            text = entry.label,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 4.dp, vertical = 8.dp),
+                                        )
+                                    }
+                                    is TimelineEntry.Media -> {
+                                        TimelineMediaItem(
+                                            mediaItem = entry.item,
+                                            onClick = { onMediaClick(entry.item.id.toString()) },
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -143,24 +173,35 @@ private fun TimelineMediaItem(
 ) {
     val isVideo = mediaItem.mimeType.startsWith("video/")
     val durationLabel = mediaItem.duration?.let { formatDuration(it) }
+    val imageDescription = buildString {
+        append(mediaItem.displayName)
+        if (isVideo) append(", video")
+        if (!mediaItem.isIndexed) append(", indexing")
+    }
 
     Surface(
         onClick = onClick,
-        modifier = modifier.aspectRatio(1f),
+        modifier = modifier
+            .aspectRatio(1f)
+            .minimumInteractiveComponentSize()
+            .semantics {
+                role = Role.Button
+                contentDescription = imageDescription
+            },
         shape = MaterialTheme.shapes.small,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             AsyncImage(
                 model = Uri.parse(mediaItem.uri),
-                contentDescription = mediaItem.displayName,
+                contentDescription = imageDescription,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
             if (isVideo) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Video",
+                    contentDescription = "Video indicator",
                     modifier = Modifier
                         .align(Alignment.Center)
                         .padding(bottom = 16.dp),

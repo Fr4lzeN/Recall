@@ -30,6 +30,7 @@ fun RecallSearchBar(
         value = query,
         onValueChange = onQueryChange,
         modifier = modifier.fillMaxWidth(),
+        label = { Text("Search query") },
         placeholder = {
             Text(
                 text = placeholder,

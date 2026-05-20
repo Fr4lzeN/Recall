@@ -12,8 +12,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ImageNotSupported
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -23,6 +28,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -63,12 +72,28 @@ fun SearchScreen(
                     )
                 }
                 uiState.query.isBlank() -> {
+                    if (uiState.indexedCount == 0 && uiState.totalCount > 0) {
+                        EmptyState(
+                            title = "Indexing not started",
+                            description = "Your photos haven't been indexed yet. Go to Settings to start.",
+                            icon = Icons.Outlined.PhotoLibrary,
+                        )
+                    } else {
+                        EmptyState(
+                            title = "Search your memories",
+                            description = buildIndexedCountDescription(
+                                indexedCount = uiState.indexedCount,
+                                totalCount = uiState.totalCount,
+                            ),
+                            icon = Icons.Outlined.Search,
+                        )
+                    }
+                }
+                uiState.indexedCount == 0 -> {
                     EmptyState(
-                        title = "Search your memories",
-                        description = buildIndexedCountDescription(
-                            indexedCount = uiState.indexedCount,
-                            totalCount = uiState.totalCount,
-                        ),
+                        title = "Indexing not started",
+                        description = "Your photos haven't been indexed yet. Go to Settings to start.",
+                        icon = Icons.Outlined.PhotoLibrary,
                     )
                 }
                 uiState.isSearching -> {
@@ -76,8 +101,10 @@ fun SearchScreen(
                 }
                 uiState.results.isEmpty() -> {
                     EmptyState(
-                        title = "No results found",
+                        title = "No photos match your search",
                         description = "Try a different description — Recall matches photos by meaning, not exact filenames.",
+                        icon = Icons.Outlined.ImageNotSupported,
+                        animateIcon = false,
                     )
                 }
                 else -> {
@@ -110,16 +137,25 @@ private fun SearchResultGridItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scorePercent = (item.score * 100).toInt()
+    val imageDescription = "${item.displayName}, ${scorePercent}% match"
+
     Surface(
         onClick = onClick,
-        modifier = modifier.aspectRatio(1f),
+        modifier = modifier
+            .aspectRatio(1f)
+            .minimumInteractiveComponentSize()
+            .semantics {
+                role = Role.Button
+                contentDescription = imageDescription
+            },
         shape = MaterialTheme.shapes.small,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             AsyncImage(
                 model = Uri.parse(item.uri),
-                contentDescription = item.displayName,
+                contentDescription = imageDescription,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
@@ -132,7 +168,7 @@ private fun SearchResultGridItem(
                     .padding(horizontal = 6.dp, vertical = 2.dp),
             ) {
                 Text(
-                    text = "${(item.score * 100).toInt()}%",
+                    text = "$scorePercent%",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onPrimary,
                 )
