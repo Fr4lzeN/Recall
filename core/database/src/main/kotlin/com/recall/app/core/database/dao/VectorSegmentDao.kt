@@ -17,6 +17,9 @@ interface VectorSegmentDao {
     @Query("UPDATE vector_segments SET deleted_count = deleted_count + 1 WHERE id = :segmentId")
     suspend fun incrementDeletedCount(segmentId: Long)
 
+    @Query("UPDATE vector_segments SET deleted_count = :deletedCount WHERE id = :segmentId")
+    suspend fun setDeletedCount(segmentId: Long, deletedCount: Int)
+
     @Query(
         "SELECT * FROM vector_segments WHERE CAST(deleted_count AS REAL) / total_count > :threshold " +
             "AND is_frozen = 1",

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -25,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -52,10 +55,13 @@ fun MediaDetailScreen(
             RecallTopBar(
                 title = mediaItem?.displayName ?: "Media",
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.minimumInteractiveComponentSize(),
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = "Navigate back",
                         )
                     }
                 },
@@ -101,14 +107,21 @@ private fun MediaPreview(
     modifier: Modifier = Modifier,
 ) {
     val isVideo = mediaItem.mimeType.startsWith("video/")
+    val previewDescription = if (isVideo) {
+        "Video preview: ${mediaItem.displayName}"
+    } else {
+        "Photo preview: ${mediaItem.displayName}"
+    }
 
     Box(
-        modifier = modifier.background(MaterialTheme.colorScheme.surface),
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surface)
+            .semantics { contentDescription = previewDescription },
         contentAlignment = Alignment.Center,
     ) {
         AsyncImage(
             model = Uri.parse(mediaItem.uri),
-            contentDescription = mediaItem.displayName,
+            contentDescription = previewDescription,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Fit,
         )
