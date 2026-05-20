@@ -286,3 +286,11 @@
 - **Branch:** `post-mvp`
 - **Commit:** `53fe180` — Phase 7 - Segmented Vector Agent: add segmented HNSW with mmap reader and atomic publishing
 - **Follow-ups:** Wire `SegmentedVectorIndex` in `VectorModule`, migrate existing `hnsw.idx` data to segments
+
+---
+
+### Phase 12 - DI Integration Agent - wire SegmentedVectorIndex into app Hilt graph
+- **Summary:** Switched `VectorModule` from `PersistentVectorIndex` to `SegmentedVectorIndex.open()` with Room-backed `SegmentManifest` and `VectorPostingStore`. Added `PersistableVectorIndex` Hilt binding. Extended `SegmentedVectorIndex.clear()` to remove Room segment rows (postings cascade). Old `vector_index/hnsw.idx` is ignored; app re-indexes via WorkManager.
+- **Files changed:** `app/di/VectorModule.kt`, `core/vector/segmented/SegmentedVectorIndex.kt` (`clear()` manifest cleanup)
+- **Tests/checks:** `./gradlew :app:compileDebugKotlin`, `./gradlew assembleDebug`
+- **Branch:** `main`

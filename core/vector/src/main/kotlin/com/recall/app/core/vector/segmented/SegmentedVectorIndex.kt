@@ -221,6 +221,9 @@ class SegmentedVectorIndex private constructor(
             frozenSegments.values.forEach { it.reader.close() }
             frozenSegments.clear()
             segmentsDir.listFiles()?.forEach { it.delete() }
+            kotlinx.coroutines.runBlocking {
+                manifest.getActiveSegments().forEach { manifest.removeSegment(it.id) }
+            }
         }
     }
 
