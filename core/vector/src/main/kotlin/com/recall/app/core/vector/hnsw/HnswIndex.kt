@@ -315,6 +315,44 @@ class HnswIndex(
         return 1f - VectorDistance.cosineSimilarity(a, b)
     }
 
+    /**
+     * Exports graph structure for on-disk segment files. Nodes must use contiguous local IDs
+     * `0..<vectorCount` (typically assigned by [SegmentWriter]).
+     */
+    fun exportEntries(): List<Pair<Long, FloatArray>> = lock.read {
+        nodes.values.map { it.id to it.vector.copyOf() }.sortedBy { it.first }
+    }
+
+    fun exportForSegment(vectorCount: Int): SegmentGraphExport = lock.read {
+        require(vectorCount > 0) { "vectorCount must be positive" }
+        val vectors = Array(vectorCount) { i ->
+            val node = nodes[i.toLong()] ?: error("Missing node for local index $i")
+            node.vector.copyOf()
+        }
+        val levels = IntArray(vectorCount) { i -> nodes[i.toLong()]!!.level }
+        val neighborsByLayer = List(vectorCount) { i ->
+            val node = nodes[i.toLong()]!!
+            Array(node.level + 1) { layer ->
+                node.neighbors[layer].map { neighborId ->
+                    neighborId.toInt().also { local ->
+                        require(local in 0 until vectorCount) {
+                            "Neighbor id $neighborId out of range for segment size $vectorCount"
+                        }
+                    }
+                }
+            }
+        }
+        val entry = entryPointId?.toInt() ?: -1
+        SegmentGraphExport(
+            entryPoint = entry,
+            maxLevel = currentMaxLevel,
+            m = m,
+            vectors = vectors.toList(),
+            levels = levels,
+            neighborsByLayer = neighborsByLayer,
+        )
+    }
+
     companion object {
         private const val NULL_ENTRY_POINT = -1L
 
