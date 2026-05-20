@@ -1,8 +1,8 @@
 # Recall — Project State
 
 **Last updated:** 2026-05-21, after Phase 7 (segmented HNSW + mmap on `post-mvp`)  
-**HEAD (main):** `6e7136a` — 12 commits (pre-merge)  
-**HEAD (post-mvp):** `53fe180` — Phase 7 segmented vector engine  
+**HEAD (main):** `6c22352` — merge of `post-mvp` (21 commits total)  
+**HEAD (post-mvp):** `ef6ee51` — Phase 7 docs + segmented vector engine  
 **Status:** Post-MVP feature set complete: HNSW + persistence + benchmarks + TFLite embedding + segmented mmap index. App still binds `PersistentVectorIndex`; wire `SegmentedVectorIndex` when ready. Next: bundle MobileCLIP `.tflite` assets + golden tests.
 
 ## Current Phase
