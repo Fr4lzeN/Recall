@@ -7,6 +7,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(project(":core:database"))
     implementation(project(":core:media"))
 }

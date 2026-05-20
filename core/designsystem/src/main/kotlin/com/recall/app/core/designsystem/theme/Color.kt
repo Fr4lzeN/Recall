@@ -1,0 +1,33 @@
+package com.recall.app.core.designsystem.theme
+
+import androidx.compose.ui.graphics.Color
+
+// Dark palette (primary)
+val DarkSurface = Color(0xFF0D0D0D)
+val DarkBackground = Color(0xFF121212)
+val DarkPrimary = Color(0xFFF5A623)
+val DarkOnPrimary = Color(0xFF1A1A1A)
+val DarkSecondary = Color(0xFF7B61FF)
+val DarkOnSecondary = Color(0xFFFFFFFF)
+val DarkTertiary = Color(0xFFE8A87C)
+val DarkOnBackground = Color(0xFFE8E8E8)
+val DarkOnSurface = Color(0xFFE0E0E0)
+val DarkOnSurfaceVariant = Color(0xFFB0B0B0)
+val DarkOutline = Color(0xFF3D3D3D)
+val DarkError = Color(0xFFCF6679)
+val DarkOnError = Color(0xFF1A1A1A)
+
+// Light palette (fallback)
+val LightSurface = Color(0xFFFFFBFE)
+val LightBackground = Color(0xFFF5F5F5)
+val LightPrimary = Color(0xFFE09400)
+val LightOnPrimary = Color(0xFFFFFFFF)
+val LightSecondary = Color(0xFF5B45D6)
+val LightOnSecondary = Color(0xFFFFFFFF)
+val LightTertiary = Color(0xFF8B6914)
+val LightOnBackground = Color(0xFF1C1B1F)
+val LightOnSurface = Color(0xFF1C1B1F)
+val LightOnSurfaceVariant = Color(0xFF49454F)
+val LightOutline = Color(0xFF79747E)
+val LightError = Color(0xFFB3261E)
+val LightOnError = Color(0xFFFFFFFF)
