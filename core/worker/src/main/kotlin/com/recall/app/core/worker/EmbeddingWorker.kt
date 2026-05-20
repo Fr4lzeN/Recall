@@ -37,6 +37,8 @@ class EmbeddingWorker @AssistedInject constructor(
 
         var processed = 0
         var failed = 0
+        val embeddings = mutableListOf<Pair<Long, FloatArray>>()
+        val pendingCompletions = mutableListOf<PendingCompletion>()
 
         for (job in jobs) {
             try {
@@ -62,20 +64,9 @@ class EmbeddingWorker @AssistedInject constructor(
 
                 try {
                     val embedding = embeddingModel.embedImage(bitmap)
-                    vectorIndex.add(mediaItem.id, embedding)
-
-                    mediaItemDao.markIndexed(
-                        id = mediaItem.id,
-                        isIndexed = true,
-                        version = 1,
-                        segmentId = 0,
-                        localIndex = vectorIndex.size() - 1,
-                    )
-
-                    indexingJobDao.updateStatus(
-                        job.id,
-                        IndexingStatus.COMPLETED,
-                        System.currentTimeMillis(),
+                    embeddings.add(mediaItem.id to embedding)
+                    pendingCompletions.add(
+                        PendingCompletion(jobId = job.id, mediaItemId = mediaItem.id),
                     )
                     processed++
                 } finally {
@@ -102,6 +93,26 @@ class EmbeddingWorker @AssistedInject constructor(
             }
         }
 
+        if (embeddings.isNotEmpty()) {
+            val startIndex = vectorIndex.size()
+            vectorIndex.addBatch(embeddings)
+            val completedAt = System.currentTimeMillis()
+            pendingCompletions.forEachIndexed { index, pending ->
+                mediaItemDao.markIndexed(
+                    id = pending.mediaItemId,
+                    isIndexed = true,
+                    version = 1,
+                    segmentId = 0,
+                    localIndex = startIndex + index,
+                )
+                indexingJobDao.updateStatus(
+                    pending.jobId,
+                    IndexingStatus.COMPLETED,
+                    completedAt,
+                )
+            }
+        }
+
         (vectorIndex as? PersistableVectorIndex)?.persist()
 
         val remaining = indexingJobDao.getByStatus(IndexingStatus.PENDING, 1)
@@ -125,6 +136,11 @@ class EmbeddingWorker @AssistedInject constructor(
             message,
         )
     }
+
+    private data class PendingCompletion(
+        val jobId: Long,
+        val mediaItemId: Long,
+    )
 
     companion object {
         const val BATCH_SIZE = 20

@@ -294,3 +294,10 @@
 - **Files changed:** `app/di/VectorModule.kt`, `core/vector/segmented/SegmentedVectorIndex.kt` (`clear()` manifest cleanup)
 - **Tests/checks:** `./gradlew :app:compileDebugKotlin`, `./gradlew assembleDebug`
 - **Branch:** `main`
+
+---
+
+### Phase 13 - Performance Agent - adaptive search config and batch embedding
+- **Summary:** Added `AdaptiveSearchConfig` for battery/thermal/index-size-aware `efSearch`. Refactored `EmbeddingWorker` to batch vector inserts via `addBatch()` before `persist()`. Verified existing CLIP ImageNet normalization in `ImagePreprocessor`; added unit test.
+- **Files changed:** `core/vector/AdaptiveSearchConfig.kt`, `AdaptiveSearchConfigTest.kt`, `core/worker/EmbeddingWorker.kt`, `core/ml/ImagePreprocessorClipTest.kt`, `docs/WORK_LOG.md`
+- **Tests/checks:** `./gradlew assembleDebug`, `:core:vector:testDebugUnitTest --tests "*.AdaptiveSearchConfig*"`, `:core:worker:compileDebugKotlin`, `:core:ml:testDebugUnitTest`
