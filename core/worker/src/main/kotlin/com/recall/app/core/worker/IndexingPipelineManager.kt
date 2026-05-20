@@ -20,7 +20,21 @@ class IndexingPipelineManager @Inject constructor(
 ) {
     private val workManager = WorkManager.getInstance(context)
 
+    fun startIntegrityCheck() {
+        val integrityWork = OneTimeWorkRequestBuilder<IntegrityCheckWorker>()
+            .build()
+
+        workManager.enqueueUniqueWork(
+            UNIQUE_INTEGRITY_CHECK,
+            ExistingWorkPolicy.KEEP,
+            integrityWork,
+        )
+    }
+
     fun startFullIndexing() {
+        val integrityWork = OneTimeWorkRequestBuilder<IntegrityCheckWorker>()
+            .build()
+
         val scanWork = OneTimeWorkRequestBuilder<MediaScanWorker>()
             .build()
 
@@ -36,8 +50,9 @@ class IndexingPipelineManager @Inject constructor(
         workManager.beginUniqueWork(
             UNIQUE_INDEX_PIPELINE,
             ExistingWorkPolicy.KEEP,
-            scanWork,
+            integrityWork,
         )
+            .then(scanWork)
             .then(embedWork)
             .enqueue()
     }
@@ -64,6 +79,7 @@ class IndexingPipelineManager @Inject constructor(
     fun cancelAll() {
         workManager.cancelUniqueWork(UNIQUE_INDEX_PIPELINE)
         workManager.cancelUniqueWork(UNIQUE_PERIODIC_SCAN)
+        workManager.cancelUniqueWork(UNIQUE_INTEGRITY_CHECK)
     }
 
     fun observePipelineStatus(): Flow<List<WorkInfo>> {
@@ -73,5 +89,6 @@ class IndexingPipelineManager @Inject constructor(
     companion object {
         private const val UNIQUE_INDEX_PIPELINE = "recall-index-pipeline"
         private const val UNIQUE_PERIODIC_SCAN = "recall-periodic-scan"
+        private const val UNIQUE_INTEGRITY_CHECK = "recall-integrity-check"
     }
 }
