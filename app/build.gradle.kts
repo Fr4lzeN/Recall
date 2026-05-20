@@ -28,6 +28,8 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:database"))
     implementation(project(":core:designsystem"))
+    implementation(project(":core:ml"))
+    implementation(project(":core:vector"))
     implementation(project(":core:worker"))
 
     implementation(project(":feature:search"))

@@ -8,6 +8,7 @@ android {
 
 dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.coil.compose)
     implementation(project(":core:database"))
     implementation(project(":core:ml"))
     implementation(project(":core:vector"))

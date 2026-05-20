@@ -9,7 +9,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.recall.app.feature.detail.MediaDetailScreen
 import com.recall.app.feature.onboarding.OnboardingScreen
-import com.recall.app.feature.search.SearchScreen
+import com.recall.app.feature.search.navigation.searchScreen
 import com.recall.app.feature.settings.SettingsScreen
 import com.recall.app.feature.timeline.TimelineScreen
 
@@ -25,13 +25,11 @@ fun RecallNavHost(
         startDestination = startDestination,
         modifier = modifier,
     ) {
-        composable(RecallRoute.SEARCH) {
-            SearchScreen(
-                onMediaClick = { mediaId ->
-                    navController.navigateToDetail(mediaId)
-                },
-            )
-        }
+        searchScreen(
+            onMediaClick = { mediaId ->
+                navController.navigateToDetail(mediaId)
+            },
+        )
         composable(RecallRoute.TIMELINE) {
             TimelineScreen(
                 onMediaClick = { mediaId ->
