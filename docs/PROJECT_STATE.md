@@ -1,13 +1,14 @@
 # Recall — Project State
 
-**Last updated:** 2026-05-20, after Phases 0–10 (MVP backend complete)  
-**Status:** MVP complete. End-to-end semantic search, background indexing, and recovery are implemented. Entering post-MVP phases (HNSW, segmented index, real ML model, feature polish).
+**Last updated:** 2026-05-20, after Phase 11a (MVP feature-complete)  
+**HEAD:** `6e7136a` — 12 commits on `main`  
+**Status:** MVP complete. End-to-end semantic search, background indexing, recovery, and all primary feature screens are wired. Entering post-MVP phases (HNSW, segmented index, real ML model).
 
 ## Current Phase
 
-**Post-MVP** — Phase 11a (Timeline / Detail / Settings integration) is in progress in the working tree but not yet committed. Next planned work: Phase 6 (HNSW), Phase 7 (segmented vector storage), real TFLite model.
+**Post-MVP** — MVP backend and UI shell are done. Next planned work: Phase 6 (HNSW), Phase 7 (segmented on-disk vector storage), real TFLite embedding model, performance tuning.
 
-## Completed Work (11 commits on `main`)
+## Completed Work (12 commits on `main`)
 
 | Phase | Commit (short) | Summary |
 |-------|------------------|---------|
@@ -22,6 +23,7 @@
 | 9 | `197c4fa` | `IntegrityCheckWorker`, `StartupIntegrityChecker`, `FailedJobRequeuer` |
 | 0.1 | `ee39cf1` | `RecallDispatchersTest`, Hilt test discovery fix |
 | 10 | `424482c` | 68 JVM unit tests (common, database, ml, vector) |
+| 11a | `6e7136a` | Timeline, Detail, Settings wired to Room + pipeline + `VectorIndex` |
 
 ## Architecture (module graph)
 
@@ -35,14 +37,41 @@
 ├── :core:ml               EmbeddingModel, MockEmbeddingModel, DeviceProfiler, ModelProfileSelector, MlModule
 ├── :core:vector           VectorIndex, LinearScanIndex, VectorDistance, DeletionBitmap, SegmentManifest (stub)
 ├── :core:worker           MediaScanWorker, EmbeddingWorker, IntegrityCheckWorker, IndexingPipelineManager, recovery
-├── :feature:search        SearchScreen + SearchViewModel (fully wired)
-├── :feature:timeline      TimelineScreen (UI stub, placeholder grid)
-├── :feature:detail        MediaDetailScreen (UI stub)
-├── :feature:settings      SettingsScreen (static list UI, stub ViewModel)
-└── :feature:onboarding    OnboardingScreen (real READ_MEDIA_* permission flow)
+├── :feature:search        SearchScreen + SearchViewModel (vector search)
+├── :feature:timeline      TimelineScreen + TimelineViewModel (Room Flow grid, date headers)
+├── :feature:detail        MediaDetailScreen + MediaDetailViewModel (metadata + preview)
+├── :feature:settings      SettingsScreen + SettingsViewModel (indexing status, reindex, clear index)
+└── :feature:onboarding    OnboardingScreen (READ_MEDIA_* permission flow)
 ```
 
 Dependency direction: **features → core** (never core → feature). `:app` aggregates features and binds app-level singletons (`VectorModule`).
+
+```mermaid
+flowchart TB
+    app[:app]
+    subgraph features
+        search[:feature:search]
+        timeline[:feature:timeline]
+        detail[:feature:detail]
+        settings[:feature:settings]
+        onboarding[:feature:onboarding]
+    end
+    subgraph core
+        common[:core:common]
+        database[:core:database]
+        designsystem[:core:designsystem]
+        media[:core:media]
+        ml[:core:ml]
+        vector[:core:vector]
+        worker[:core:worker]
+    end
+    app --> features & core
+    search --> database & ml & vector & designsystem
+    timeline --> database & media & designsystem
+    detail --> database & media & designsystem
+    settings --> database & ml & vector & worker & designsystem
+    worker --> database & media & ml & vector & common
+```
 
 ## Build Configuration
 
@@ -64,6 +93,7 @@ Dependency direction: **features → core** (never core → feature). `:app` agg
 | WorkManager | 2.11.2 |
 | Coil | 3.4.0 |
 | Coroutines | 1.10.2 |
+| Lifecycle | 2.10.0 |
 | TFLite | 2.17.0 (dependency present; real model not bundled) |
 
 Convention plugins in `:build-logic`: `recall.android.library`, `recall.android.feature`, `recall.android.application`, `recall.android.compose`, `recall.hilt`.
@@ -107,6 +137,7 @@ Convention plugins in `:build-logic`: `recall.android.library`, `recall.android.
 | `DeletionBitmap` | Done — soft-delete bookkeeping (tests) |
 | `SegmentManifest` / `VectorSegment` | Placeholder interfaces for Phase 7 |
 | App binding | `VectorModule` → `LinearScanIndex(embeddingModel.dimensions)` |
+| Settings `clearIndex()` | Clears in-memory index + resets `is_indexed` flags in Room |
 | HNSW | **Not started** (Phase 6) |
 | Segmented on-disk index | **Not started** (Phase 7) |
 
@@ -121,6 +152,7 @@ Convention plugins in `:build-logic`: `recall.android.library`, `recall.android.
 | `EmbeddingWorker` | Thumbnail → `embedImage` → `vectorIndex.add` → mark indexed |
 | `IntegrityCheckWorker` | Runs `StartupIntegrityChecker` + `FailedJobRequeuer` |
 | Constraints | Battery-not-low + storage-not-low on embed work |
+| Settings UI | `observePipelineStatus()` drives indexing-in-progress state; **Re-index All** triggers `startFullIndexing()` |
 
 ## Consistency / Recovery Status
 
@@ -130,15 +162,15 @@ Convention plugins in `:build-logic`: `recall.android.library`, `recall.android.
 | `FailedJobRequeuer` | Requeue `FAILED` jobs with `retry_count < 3` |
 | `EmbeddingWorker` | Requeues `PROCESSING` at start of each run |
 
-## Feature UI Status (committed)
+## Feature UI Status
 
 | Screen | Status |
 |--------|--------|
 | Search | **Complete** — debounced query, vector search, Coil thumbnails, indexed/total counts |
 | Onboarding | **Complete** — READ_MEDIA_IMAGES/VIDEO (+ legacy READ_EXTERNAL_STORAGE ≤ API 32) |
-| Timeline | **Stub** — placeholder grid, no Room data |
-| Detail | **Stub** — title + placeholder content |
-| Settings | **Stub** — static rows (model profile, storage, reindex) |
+| Timeline | **Complete** — `MediaItemDao.observeAll()` grid, date headers, indexing badge, tap → detail |
+| Detail | **Complete** — `detail/{mediaId}` route, preview, metadata panel, indexing badge |
+| Settings | **Complete** — indexing progress, model profile + device info, re-index, clear index |
 
 ## Important Decisions Log
 
@@ -152,7 +184,8 @@ Convention plugins in `:build-logic`: `recall.android.library`, `recall.android.
 - **`tensorflow-lite-support` omitted** — LiteRT namespace/manifest conflict; revisit with real model.
 - **Room WAL** default; snake_case columns via `@ColumnInfo`.
 - **CASCADE** FKs on `indexing_jobs` and `vector_postings`.
-- **Startup indexing** runs automatically via `AppStartupInitializer` (may be heavy on first launch — tune in settings phase).
+- **Startup indexing** runs automatically via `AppStartupInitializer` (may be heavy on first launch).
+- **Phase 11a:** Feature modules depend on `core:database` (and settings also on `ml`, `vector`, `worker`) for direct DAO/pipeline access from ViewModels.
 
 ## Known Limitations
 
@@ -160,26 +193,24 @@ Convention plugins in `:build-logic`: `recall.android.library`, `recall.android.
 - **Linear scan** — O(n) per query; suitable only for small libraries; no persistence of vectors to disk yet.
 - **Vectors lost on process kill** — in-memory index; full re-embed required unless Phase 7 segment storage is added.
 - **Video semantics** — keyframe extractor exists; embed path uses single thumbnail per item.
-- **Timeline / Detail / Settings** — stubs at last commit; Phase 11a WIP in working tree.
+- **Model profile read-only in Settings** — displays `ModelProfileSelector` result; no in-app profile switching UI yet.
+- **No ViewModel or WorkManager unit tests** — coverage is core-module JVM tests only.
 - **No instrumented UI tests** beyond template `ExampleInstrumentedTest`.
-- **Periodic scan** enqueued by pipeline manager but not yet exposed in Settings UI.
+- **`MediaContentObserver`** implemented but not wired to automatic incremental sync from UI.
 
 ## Next Steps
 
-1. **Phase 11a** — Wire Timeline, Detail, and Settings to Room + `IndexingPipelineManager` (in progress locally).
-2. **Phase 6** — HNSW approximate nearest neighbor index.
-3. **Phase 7** — Segmented on-disk vector storage (`VectorSegmentEntity`, `SegmentManifest` implementation).
-4. **Real ML** — Bundle TFLite model, resolve `tensorflow-lite-support`, golden-vector tests.
-5. **Performance** — Batch embed, GPU delegate, incremental index updates.
-6. **Polish** — Settings-driven reindex, model profile UI, storage metrics.
+1. **Phase 6** — HNSW approximate nearest neighbor index.
+2. **Phase 7** — Segmented on-disk vector storage (`VectorSegmentEntity`, `SegmentManifest` implementation).
+3. **Real ML** — Bundle TFLite model, resolve `tensorflow-lite-support`, golden-vector tests.
+4. **Performance** — Batch embed, GPU delegate, incremental index updates.
+5. **Polish** — Model profile picker, observer-driven incremental sync, search → detail from results.
 
 ## Build / Test Status
 
-| Check | Result (last verified on `HEAD` `424482c`) |
-|-------|---------------------------------------------|
+| Check | Result (verified on `HEAD` `6e7136a`, 2026-05-20) |
+|-------|-----------------------------------------------------|
 | `./gradlew assembleDebug` | **PASS** |
 | `./gradlew testDebugUnitTest` | **PASS** — **68** JVM tests |
 | Test modules | `:core:common` (2), `:core:database` (16), `:core:ml` (14), `:core:vector` (36) |
 | Lint | No dedicated lint gate documented |
-
-**Note:** The working tree may contain uncommitted Phase 11a changes that do not compile until that work is finished. Verify with a clean `HEAD` checkout for release builds.

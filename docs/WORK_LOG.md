@@ -35,7 +35,7 @@
   - String routes (not type-safe navigation) for simplicity
 - **Tests/checks:** `./gradlew assembleDebug` — BUILD SUCCESSFUL
 - **Commit:** `900248f` — Phase 1 - UI Compose Agent: add RecallTheme, navigation graph, and stub screens
-- **Follow-ups:** Wire real data into screens (Phase 3, 5)
+- **Follow-ups:** Wire real data into screens (Phase 3, 5, 11a)
 
 ---
 
@@ -141,7 +141,7 @@
   - `segmentId = 0` placeholder until Phase 7
 - **Tests/checks:** `./gradlew assembleDebug` — BUILD SUCCESSFUL
 - **Commit:** `8d2375e` — Phase 8 - WorkManager Agent: add background media scan and embedding workers
-- **Follow-ups:** Expose pipeline status in Settings UI
+- **Follow-ups:** Expose pipeline status in Settings UI (done in Phase 11a)
 
 ---
 
@@ -182,9 +182,27 @@
 
 ---
 
-### Phase 11a - Feature Integration Agent - Timeline, Detail, Settings (in progress)
-- **Summary:** WIP in working tree (not committed as of documentation update): wire Timeline to `MediaItemDao` Flow, enrich Detail screen, connect Settings to `IndexingPipelineManager` and model profile. Local changes may not compile until complete.
-- **Status:** **In progress** — uncommitted changes under `feature/timeline`, `feature/detail`, `feature/settings`, `app/navigation/RecallNavHost.kt`
-- **Tests/checks:** `./gradlew assembleDebug` passes on clean `HEAD` (`424482c`); WIP tree may fail compile until Phase 11a lands
-- **Commit:** _(pending)_
-- **Follow-ups:** Commit when compile-clean; add feature-level unit tests
+### Phase 11a - Feature Integration Agent - Timeline, Detail, Settings
+- **Summary:** Wired Timeline to `MediaItemDao.observeAll()` with date-grouped grid and indexing badges; Detail screen loads `mediaId` from nav args with preview and metadata; Settings shows indexing progress via `IndexingPipelineManager.observePipelineStatus()`, device/model info, **Re-index All** and **Clear Index** actions.
+- **Files changed:**
+  - `feature/timeline/`: `TimelineViewModel.kt`, `TimelineScreen.kt`, `navigation/TimelineNavigation.kt`, `build.gradle.kts` (+ `core:database`, `core:media`, Coil)
+  - `feature/detail/`: `MediaDetailViewModel.kt`, `MediaDetailScreen.kt`, `navigation/DetailNavigation.kt`, `build.gradle.kts`
+  - `feature/settings/`: `SettingsViewModel.kt`, `SettingsScreen.kt`, `build.gradle.kts` (+ `core:database`, `core:ml`, `core:vector`, `core:worker`)
+  - `app/navigation/RecallNavHost.kt` (timeline + detail navigation callbacks)
+- **Decisions made:**
+  - Timeline groups by `dateTaken` (fallback `dateAdded` in seconds → ms)
+  - Detail uses `SavedStateHandle` `mediaId` nav argument
+  - `clearIndex()` resets Room `is_indexed` flags and calls `vectorIndex.clear()`
+  - Model profile displayed read-only from `ModelProfileSelector.selectProfile()`
+- **Tests/checks:** `./gradlew assembleDebug` — BUILD SUCCESSFUL
+- **Commit:** `6e7136a` — Phase 11 - Feature Integration Agent: wire Timeline, Detail, and Settings with real data
+- **Follow-ups:** ViewModel unit tests, model profile picker UI, wire `MediaContentObserver` for live gallery sync
+
+---
+
+### Phase 11 - Documentation Agent - README, architecture docs, project state
+- **Summary:** Added root `README.md`, `docs/ARCHITECTURE.md`, refreshed `docs/PROJECT_STATE.md` and `docs/WORK_LOG.md` for MVP-complete state including Phase 11a.
+- **Files changed:** `README.md`, `docs/ARCHITECTURE.md`, `docs/PROJECT_STATE.md`, `docs/WORK_LOG.md`
+- **Tests/checks:** `./gradlew assembleDebug` + `testDebugUnitTest` — BUILD SUCCESSFUL
+- **Commit:** _(this entry)_
+- **Follow-ups:** Keep docs in sync when Phase 6/7 land

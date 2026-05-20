@@ -1,6 +1,6 @@
 # Recall — Architecture
 
-This document describes the technical architecture of the Recall Android app as implemented in the MVP (commit `424482c` on `main`). For a concise status snapshot, see [PROJECT_STATE.md](PROJECT_STATE.md).
+This document describes the technical architecture of the Recall Android app as implemented at MVP completion (`6e7136a` on `main`). For a concise status snapshot, see [PROJECT_STATE.md](PROJECT_STATE.md).
 
 ## Design Goals
 
@@ -35,9 +35,9 @@ flowchart LR
     APP --> FS & FT & FD & FSET & FO
     APP --> CD & CML & CV & CW & CDS
     FS --> CD & CML & CV & CDS
-    FT --> CDS
-    FD --> CDS
-    FSET --> CDS
+    FT --> CD & CM & CDS
+    FD --> CD & CM & CDS
+    FSET --> CD & CML & CV & CW & CDS
     FO --> CDS
     CW --> CC & CD & CM & CML & CV
     CM --> CC & CD
@@ -105,6 +105,8 @@ sequenceDiagram
 
 **Periodic work:** `startPeriodicScan()` registers a 6-hour `MediaScanWorker` with battery-not-low constraint.
 
+**User-triggered reindex:** Settings **Re-index All** calls `IndexingPipelineManager.startFullIndexing()` again (disabled while pipeline is `RUNNING` or `ENQUEUED`).
+
 ## Data Flow: Search
 
 User query path in `SearchViewModel` (feature module):
@@ -130,7 +132,49 @@ sequenceDiagram
     VM-->>UI: SearchUiState with results
 ```
 
-Cosine similarity is computed in `LinearScanIndex` via `VectorDistance.cosineSimilarity`. Results are sorted by descending score.
+Cosine similarity is computed in `LinearScanIndex` via `VectorDistance.cosineSimilarity`. Results are sorted by descending score. Tapping a result navigates to `detail/{mediaId}`.
+
+## Data Flow: Timeline and Detail
+
+```mermaid
+sequenceDiagram
+    participant TL as TimelineScreen
+    participant TVM as TimelineViewModel
+    participant DAO as MediaItemDao
+    participant Nav as RecallNavHost
+    participant DS as MediaDetailScreen
+    participant DVM as MediaDetailViewModel
+
+    TL->>TVM: collect mediaItems Flow
+    TVM->>DAO: observeAll()
+    DAO-->>TVM: List MediaItemEntity
+    TL->>Nav: onMediaClick(mediaId)
+    Nav->>DS: navigate detail/{mediaId}
+    DS->>DVM: SavedStateHandle mediaId
+    DVM->>DAO: getById(mediaId)
+    DAO-->>DS: MediaItemEntity + Coil preview
+```
+
+Timeline groups items by `dateTaken` (or `dateAdded` converted to milliseconds) into date header rows. Unindexed items show an **Indexing** overlay badge.
+
+## Data Flow: Settings Actions
+
+```mermaid
+sequenceDiagram
+    participant SET as SettingsScreen
+    participant SVM as SettingsViewModel
+    participant Pipe as IndexingPipelineManager
+    participant VI as VectorIndex
+    participant DAO as MediaItemDao
+
+    SET->>SVM: observe total/indexed counts
+    SVM->>DAO: observeCount / observeIndexedCount
+    SET->>SVM: reindexAll()
+    SVM->>Pipe: startFullIndexing()
+    SET->>SVM: clearIndex()
+    SVM->>VI: clear()
+    SVM->>DAO: markIndexed(false) for all active ids
+```
 
 ## Key Interfaces and Contracts
 
@@ -191,6 +235,8 @@ Workers use `@HiltWorker` + `@AssistedInject`. `RecallApplication` implements `C
 
 **Scopes:** Database and index singletons are `@Singleton` for the process lifetime.
 
+Feature ViewModels use `@HiltViewModel` and inject DAOs or managers directly (no repository layer yet).
+
 ## Room Schema
 
 Version **1**, exported JSON at `core/database/schemas/com.recall.app.core.database.RecallDatabase/1.json`.
@@ -220,9 +266,10 @@ Stores active model profile metadata for settings (future UI).
 ### Current: Linear Scan
 
 - **Storage:** In-memory only, keyed by `mediaItemId`.
-- **Query:** Full scan over all vectors, cosine similarity, top-K heap via sort + take.
+- **Query:** Full scan over all vectors, cosine similarity, top-K via sort + take.
 - **Concurrency:** `Mutex` on mutations; search copies map snapshot under lock.
 - **Deletion:** `remove(id)`; `DeletionBitmap` tested for future soft-delete in segmented stores.
+- **Clear:** `SettingsViewModel.clearIndex()` wipes RAM index and resets Room flags; next pipeline run re-embeds.
 
 **Limitations:** O(n) latency; vectors not restored after process death until `EmbeddingWorker` re-runs.
 
@@ -263,7 +310,7 @@ flowchart TB
 | `recall-periodic-scan` | Periodic 6h | MediaScanWorker |
 | `recall-integrity-check` | One-time | IntegrityCheckWorker |
 
-`IndexingPipelineManager.observePipelineStatus()` exposes `Flow<List<WorkInfo>>` for UI progress (not yet wired in Settings at MVP commit).
+`IndexingPipelineManager.observePipelineStatus()` exposes `Flow<List<WorkInfo>>` — wired in `SettingsViewModel.isIndexing` for UI progress.
 
 ## Consistency and Recovery
 
@@ -282,7 +329,7 @@ flowchart TB
 
 ### Media sync (optional path)
 
-`MediaContentObserver` + `MediaSyncManager` support reacting to gallery changes outside the periodic scan (wired for future real-time incremental updates).
+`MediaContentObserver` + `MediaSyncManager` support reacting to gallery changes outside the periodic scan (implemented; not yet wired from Settings or startup beyond periodic scan).
 
 ## Media Layer
 

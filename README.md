@@ -6,9 +6,9 @@ Offline semantic search for your photo and video gallery, powered by on-device m
 
 Recall is an Android app that lets you find photos and videos by describing what you remember — not by filenames, folders, or exact dates. Type a natural-language query like "sunset at the beach" or "birthday cake with candles," and Recall ranks your library by visual meaning using embedding vectors computed entirely on your device.
 
-Your media never leaves your phone. Recall does not request network access: there is no cloud upload, no analytics endpoint, and no account system. Indexing runs in the background via WorkManager after you grant photo/video read permissions. Embeddings are generated locally (currently via a deterministic mock model for development; a real TFLite model is planned), stored in an in-memory vector index for search, and metadata is kept in a local Room database.
+Your media never leaves your phone. Recall does not request network access: there is no cloud upload, no analytics endpoint, and no account system. After you grant photo/video read permissions during onboarding, WorkManager scans your MediaStore library in the background, generates embeddings locally, and stores vectors in an in-memory index for instant search. Metadata lives in a local Room database.
 
-The app is built as a multi-module Kotlin project with Jetpack Compose, Hilt dependency injection, and a clean separation between core infrastructure (database, media scanning, ML, vector search, background workers) and feature screens (search, timeline, detail, settings, onboarding).
+The MVP uses a deterministic mock embedding model for development and testing; a real TensorFlow Lite model is planned. The app is built as a multi-module Kotlin project with Jetpack Compose, Hilt dependency injection, and a clean separation between core infrastructure (database, media scanning, ML, vector search, background workers) and feature screens (search, timeline, detail, settings, onboarding).
 
 ## Architecture
 
@@ -44,6 +44,14 @@ flowchart TB
     search --> ml
     search --> vector
     search --> designsystem
+    timeline --> database
+    timeline --> media
+    detail --> database
+    detail --> media
+    settings --> database
+    settings --> ml
+    settings --> vector
+    settings --> worker
     worker --> database
     worker --> media
     worker --> ml
@@ -88,7 +96,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for data-flow diagrams, interfa
 ./gradlew installDebug
 ```
 
-On first launch, complete onboarding to grant media permissions. The app enqueues a background scan and embedding pipeline automatically. Open **Search** once indexing progress appears (indexed count in the empty state).
+On first launch, complete onboarding to grant media permissions. The app enqueues a background scan and embedding pipeline automatically. Open **Search** once indexing progress appears, or check **Settings** for indexed/total counts.
 
 ## Project Structure
 
@@ -103,9 +111,9 @@ On first launch, complete onboarding to grant media permissions. The app enqueue
 | `:core:vector` | `VectorIndex`, `LinearScanIndex`, distance utilities |
 | `:core:worker` | Background scan/embed workers, pipeline manager, integrity recovery |
 | `:feature:search` | Semantic search UI and ViewModel |
-| `:feature:timeline` | Chronological media grid (integration in progress) |
-| `:feature:detail` | Full-screen media view (integration in progress) |
-| `:feature:settings` | Model profile, storage, reindex controls (integration in progress) |
+| `:feature:timeline` | Date-grouped media grid from Room |
+| `:feature:detail` | Full-screen media preview and metadata |
+| `:feature:settings` | Indexing status, device info, reindex and clear-index actions |
 | `:feature:onboarding` | Permission gate |
 | `:build-logic` | Convention plugins (`recall.android.*`, `recall.hilt`) |
 
@@ -126,7 +134,7 @@ Documentation: [docs/PROJECT_STATE.md](docs/PROJECT_STATE.md) · [docs/ARCHITECT
 | 8 | Done | WorkManager indexing pipeline |
 | 9 | Done | Startup integrity and failed-job recovery |
 | 10 | Done | Unit tests (68 JVM tests) |
-| 11a | In progress | Timeline, detail, settings data binding |
+| 11a | Done | Timeline, detail, settings data binding |
 
 ## Testing
 
