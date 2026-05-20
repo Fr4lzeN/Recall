@@ -2,23 +2,23 @@ package com.recall.app.feature.detail
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.recall.app.core.database.dao.MediaItemDao
+import com.recall.app.core.database.entity.MediaItemEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
-
-data class MediaDetailUiState(
-    val mediaId: String = "",
-    val isLoading: Boolean = false,
-)
 
 @HiltViewModel
 class MediaDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
+    private val mediaItemDao: MediaItemDao,
 ) : ViewModel() {
-    private val mediaId: String = checkNotNull(savedStateHandle["mediaId"])
+    private val mediaId: Long = checkNotNull(savedStateHandle.get<String>("mediaId")).toLong()
 
-    private val _uiState = MutableStateFlow(MediaDetailUiState(mediaId = mediaId))
-    val uiState: StateFlow<MediaDetailUiState> = _uiState.asStateFlow()
+    val mediaItem: StateFlow<MediaItemEntity?> = flow { emit(mediaItemDao.getById(mediaId)) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 }

@@ -10,4 +10,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(project(":core:database"))
     implementation(project(":core:ml"))
+    implementation(project(":core:vector"))
+    implementation(project(":core:worker"))
+    implementation(libs.androidx.work.runtime.ktx)
 }

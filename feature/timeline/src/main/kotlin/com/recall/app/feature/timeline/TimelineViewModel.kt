@@ -1,18 +1,25 @@
 package com.recall.app.feature.timeline
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.recall.app.core.database.dao.MediaItemDao
+import com.recall.app.core.database.entity.MediaItemEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
-data class TimelineUiState(
-    val isLoading: Boolean = false,
-)
-
 @HiltViewModel
-class TimelineViewModel @Inject constructor() : ViewModel() {
-    private val _uiState = MutableStateFlow(TimelineUiState())
-    val uiState: StateFlow<TimelineUiState> = _uiState.asStateFlow()
+class TimelineViewModel @Inject constructor(
+    private val mediaItemDao: MediaItemDao,
+) : ViewModel() {
+    val mediaItems: StateFlow<List<MediaItemEntity>> = mediaItemDao.observeAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val mediaCount: StateFlow<Int> = mediaItemDao.observeCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val indexedCount: StateFlow<Int> = mediaItemDao.observeIndexedCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 }
