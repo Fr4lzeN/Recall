@@ -206,3 +206,59 @@
 - **Tests/checks:** `./gradlew assembleDebug` + `testDebugUnitTest` — BUILD SUCCESSFUL
 - **Commit:** _(this entry)_
 - **Follow-ups:** Keep docs in sync when Phase 6/7 land
+
+---
+
+## Post-MVP (branch `post-mvp`)
+
+### Phase 11b - UX Polish Agent - Animations, accessibility, R8 config
+- **Summary:** Added app icon, splash screen, edge-to-edge display, accessibility labels, R8 ProGuard rules, Material Motion animations, `minimumInteractiveComponentSize`.
+- **Branch:** `post-mvp`
+- **Commit:** `0051776` — Phase 11 - UX Polish Agent: add animations, accessibility, R8 config, and UI polish
+
+---
+
+### Phase 6 - Vector Search Agent - Pure Kotlin HNSW implementation
+- **Summary:** Implemented Hierarchical Navigable Small World (HNSW) algorithm in pure Kotlin with `add`, `search`, `remove`, `serialize`, `deserialize`. Dynamic `efSearch` scaling achieves recall@10 >= 0.95 vs brute force. Thread-safe with `ReentrantReadWriteLock`.
+- **Files changed:**
+  - `core/vector/hnsw/HnswIndex.kt`
+  - `core/vector/src/test/`: `HnswIndexTest.kt`, `HnswRecallTest.kt`, `HnswConcurrencyTest.kt`
+- **Tests/checks:** `testDebugUnitTest` — PASS (HNSW recall, concurrency, edge case tests)
+- **Branch:** `post-mvp`
+- **Commit:** `0408c04` — Phase 6 - Vector Search Agent: implement pure Kotlin HNSW with recall@10 >= 0.95
+
+---
+
+### Phase 6.1 - HNSW Integration Agent - Switch app to persistent HNSW
+- **Summary:** Created `PersistentVectorIndex` wrapping `HnswIndex` with atomic file-based persistence (serialize → tmp → rename). Updated `VectorModule` in `:app` to use `PersistentVectorIndex`. Modified `EmbeddingWorker` to call `persist()` after batch processing.
+- **Files changed:**
+  - `core/vector/persistent/PersistentVectorIndex.kt`, `PersistableVectorIndex.kt`
+  - `app/di/VectorModule.kt` (switched from LinearScan to PersistentVectorIndex)
+  - `core/worker/EmbeddingWorker.kt` (added persist() call)
+- **Tests/checks:** `assembleDebug` — PASS
+- **Branch:** `post-mvp`
+- **Commit:** `b5766cf` — Phase 6.1 - HNSW Integration Agent: switch to persistent HNSW index with file-based storage
+
+---
+
+### Phase 10b - Benchmark Agent - Comprehensive vector search benchmarks
+- **Summary:** Added benchmark test suite for search latency (LinearScan vs HNSW at 1K–50K vectors), indexing throughput (single vs batch), recall@10 vs efSearch/M/scale, memory footprint, and serialization round-trip.
+- **Files changed:**
+  - `core/vector/src/test/.../benchmark/`: `BenchmarkUtils.kt`, `SearchBenchmarkTest.kt`, `IndexingBenchmarkTest.kt`, `RecallBenchmarkTest.kt`, `MemoryBenchmarkTest.kt`, `SerializationBenchmarkTest.kt`
+- **Tests/checks:** Benchmark subset — PASS (1K/5K search, linear insert, serialization)
+- **Branch:** `post-mvp`
+- **Commit:** `9fd48e9` — Phase 10b - Benchmark Agent: add comprehensive vector search benchmark suite
+- **Follow-ups:** Run full benchmark suite including 50K-vector tests on device
+
+---
+
+### Phase 4b - ML Embedding Agent - TFLite embedding model
+- **Summary:** Added `TFLiteEmbeddingModel` using `org.tensorflow.lite.Interpreter` (no tensorflow-lite-support). Loads MobileCLIP from assets with NNAPI/GPU delegates, CLIP ImageNet preprocessing, L2-normalized embeddings. Text queries use a deterministic fingerprint bitmap routed through the image tower. `MlModule` probes assets and falls back to `MockEmbeddingModel` when `.tflite` files are absent.
+- **Files changed:**
+  - `core/ml/`: `TFLiteEmbeddingModel.kt`, `ImagePreprocessor.kt` (CLIP normalization), `di/MlModule.kt`
+  - `core/ml/build.gradle.kts` (tensorflow-lite-gpu, Robolectric for unit tests)
+  - `core/ml/src/test/`: `TFLiteEmbeddingModelTest.kt`
+  - `docs/PROJECT_STATE.md`, `docs/WORK_LOG.md`
+- **Tests/checks:** `./gradlew :core:ml:testDebugUnitTest` — PASS; `./gradlew :core:ml:compileDebugUnitTestKotlin` — PASS
+- **Branch:** `post-mvp`
+- **Follow-ups:** Bundle `mobileclip_*.tflite` in assets, androidTest golden-vector inference, dedicated text tower when support lib conflict is resolved
