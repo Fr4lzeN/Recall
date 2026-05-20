@@ -1,0 +1,50 @@
+plugins {
+    alias(libs.plugins.recall.android.application)
+    alias(libs.plugins.recall.hilt)
+}
+
+android {
+    namespace = "com.recall.app"
+
+    defaultConfig {
+        applicationId = "com.recall.app"
+        versionCode = 1
+        versionName = "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
+}
+
+dependencies {
+    implementation(project(":core:common"))
+    implementation(project(":core:database"))
+    implementation(project(":core:designsystem"))
+    implementation(project(":core:worker"))
+
+    implementation(project(":feature:search"))
+    implementation(project(":feature:timeline"))
+    implementation(project(":feature:detail"))
+    implementation(project(":feature:settings"))
+    implementation(project(":feature:onboarding"))
+
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.work.runtime.ktx)
+
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
+}

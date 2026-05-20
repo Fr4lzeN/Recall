@@ -1,0 +1,50 @@
+.cursor/
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+**/build/
+/captures
+.externalNativeBuild
+.cxx/
+local.properties
+
+# ML model files
+*.tflite
+*.onnx
+*.mlmodel
+*.pb
+*.h5
+*.pt
+*.pth
+*.onnx.data
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+
+# Android Studio
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+bin/
+gen/
+out/
+
+# Kotlin
+.kotlin/
+
+# Secrets
+*.keystore
+*.jks
+google-services.json
