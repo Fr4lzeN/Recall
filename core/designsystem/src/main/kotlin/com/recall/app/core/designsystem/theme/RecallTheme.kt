@@ -1,7 +1,6 @@
 package com.recall.app.core.designsystem.theme
 
 import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -16,6 +15,7 @@ private val DarkColorScheme = darkColorScheme(
     secondary = DarkSecondary,
     onSecondary = DarkOnSecondary,
     tertiary = DarkTertiary,
+    onTertiary = DarkOnTertiary,
     background = DarkBackground,
     onBackground = DarkOnBackground,
     surface = DarkSurface,
@@ -24,6 +24,9 @@ private val DarkColorScheme = darkColorScheme(
     outline = DarkOutline,
     error = DarkError,
     onError = DarkOnError,
+    surfaceContainer = DarkPanel,
+    surfaceContainerHigh = DarkPanel,
+    surfaceContainerHighest = DarkPanel,
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -45,7 +48,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun RecallTheme(
     darkTheme: Boolean = true,
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val colorScheme = when {
@@ -55,6 +58,16 @@ fun RecallTheme(
                 dynamicDarkColorScheme(context).copy(
                     surface = DarkSurface,
                     background = DarkBackground,
+                    primary = DarkPrimary,
+                    onPrimary = DarkOnPrimary,
+                    onSurface = DarkOnSurface,
+                    onSurfaceVariant = DarkOnSurfaceVariant,
+                    outline = DarkOutline,
+                    tertiary = DarkTertiary,
+                    onTertiary = DarkOnTertiary,
+                    error = DarkError,
+                    surfaceContainer = DarkPanel,
+                    surfaceContainerHigh = DarkPanel,
                 )
             } else {
                 dynamicLightColorScheme(context)

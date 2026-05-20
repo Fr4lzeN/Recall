@@ -297,6 +297,14 @@
 
 ---
 
+### Phase 14 - UI Sync Agent - Compose screens match Figma design
+- **Summary:** Synced dark theme tokens, design-system components, and all feature screens to the React/Tailwind reference in `docs/дизайн/`. Added Directory Exclusion screen with navigation from Settings.
+- **Files changed:** `core/designsystem/` (Color, RecallTheme, SearchBar, TopBar, Empty/Error/Loading, MediaGridItem, RecallConfirmDialog), `feature/search`, `feature/timeline`, `feature/detail`, `feature/settings` (+ `DirectoryExclusionScreen`), `feature/onboarding`, `app/ui/RecallApp.kt`, `app/navigation/`
+- **Tests/checks:** `./gradlew assembleDebug` — BUILD SUCCESSFUL
+- **Commit:** Phase 14 - UI Sync Agent: update all Compose screens to match Figma design
+
+---
+
 ### Phase 13 - Performance Agent - adaptive search config and batch embedding
 - **Summary:** Added `AdaptiveSearchConfig` for battery/thermal/index-size-aware `efSearch`. Refactored `EmbeddingWorker` to batch vector inserts via `addBatch()` before `persist()`. Verified existing CLIP ImageNet normalization in `ImagePreprocessor`; added unit test.
 - **Files changed:** `core/vector/AdaptiveSearchConfig.kt`, `AdaptiveSearchConfigTest.kt`, `core/worker/EmbeddingWorker.kt`, `core/ml/ImagePreprocessorClipTest.kt`, `docs/WORK_LOG.md`

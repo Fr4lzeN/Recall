@@ -12,6 +12,7 @@ import com.recall.app.feature.detail.navigation.DetailRoute
 import com.recall.app.feature.onboarding.OnboardingScreen
 import com.recall.app.feature.search.SearchScreen
 import com.recall.app.feature.search.navigation.SearchRoute
+import com.recall.app.feature.settings.DirectoryExclusionScreen
 import com.recall.app.feature.settings.SettingsScreen
 import com.recall.app.feature.timeline.TimelineScreen
 import com.recall.app.feature.timeline.navigation.TimelineRoute
@@ -61,7 +62,22 @@ fun RecallNavHost(
             popEnterTransition = topLevelPopEnterTransition(),
             popExitTransition = topLevelPopExitTransition(),
         ) {
-            SettingsScreen()
+            SettingsScreen(
+                onNavigateToExclusions = {
+                    navController.navigateToDirectoryExclusions()
+                },
+            )
+        }
+        composable(
+            route = RecallRoute.DIRECTORY_EXCLUSIONS,
+            enterTransition = detailEnterTransition(),
+            exitTransition = detailExitTransition(),
+            popEnterTransition = detailPopEnterTransition(),
+            popExitTransition = detailPopExitTransition(),
+        ) {
+            DirectoryExclusionScreen(
+                onNavigateBack = { navController.popBackStack() },
+            )
         }
         composable(
             route = DetailRoute.ROUTE,

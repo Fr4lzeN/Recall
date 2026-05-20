@@ -3,6 +3,8 @@ package com.recall.app.feature.timeline
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -33,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -117,7 +120,7 @@ fun TimelineScreen(
                     }
                     else -> {
                         LazyVerticalGrid(
-                            columns = GridCells.Adaptive(minSize = 120.dp),
+                            columns = GridCells.Fixed(3),
                             contentPadding = PaddingValues(8.dp),
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -199,14 +202,20 @@ private fun TimelineMediaItem(
                 contentScale = ContentScale.Crop,
             )
             if (isVideo) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Video indicator",
+                Box(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .padding(bottom = 16.dp),
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
-                )
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.4f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "Video indicator",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+                    )
+                }
             }
             if (durationLabel != null) {
                 Box(
@@ -214,13 +223,13 @@ private fun TimelineMediaItem(
                         .align(Alignment.BottomEnd)
                         .padding(6.dp)
                         .clip(MaterialTheme.shapes.extraSmall)
-                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f))
+                        .background(Color.Black.copy(alpha = 0.7f))
                         .padding(horizontal = 6.dp, vertical = 2.dp),
                 ) {
                     Text(
                         text = durationLabel,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        color = MaterialTheme.colorScheme.onBackground,
                     )
                 }
             }

@@ -10,17 +10,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,6 +34,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.recall.app.core.designsystem.component.RecallConfirmDialog
 import com.recall.app.core.designsystem.theme.RecallTheme
 
 @Composable
@@ -60,36 +63,25 @@ fun OnboardingScreen(
     }
 
     if (uiState.showRationaleDialog) {
-        AlertDialog(
-            onDismissRequest = viewModel::dismissRationaleDialog,
+        RecallConfirmDialog(
+            title = "Media access needed",
+            body = "Recall needs access to your photos and videos to search and organize " +
+                "your memories. All processing stays on your device.",
+            confirmLabel = "Grant access",
+            dismissLabel = "Not now",
+            onConfirm = {
+                viewModel.dismissRationaleDialog()
+                viewModel.onRequestPermissions()
+                permissionLauncher.launch(MediaPermissions.requiredPermissions())
+            },
+            onDismiss = viewModel::dismissRationaleDialog,
             icon = {
                 Icon(
                     imageVector = Icons.Outlined.Lock,
                     contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary,
                 )
-            },
-            title = { Text("Media access needed") },
-            text = {
-                Text(
-                    "Recall needs access to your photos and videos to search and organize " +
-                        "your memories. All processing stays on your device.",
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.dismissRationaleDialog()
-                        viewModel.onRequestPermissions()
-                        permissionLauncher.launch(MediaPermissions.requiredPermissions())
-                    },
-                ) {
-                    Text("Grant access")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = viewModel::dismissRationaleDialog) {
-                    Text("Not now")
-                }
             },
         )
     }
@@ -104,7 +96,7 @@ fun OnboardingScreen(
         Icon(
             imageVector = Icons.Outlined.Lock,
             contentDescription = null,
-            modifier = Modifier.height(72.dp),
+            modifier = Modifier.size(72.dp),
             tint = MaterialTheme.colorScheme.primary,
         )
         Spacer(modifier = Modifier.height(24.dp))
@@ -112,6 +104,7 @@ fun OnboardingScreen(
             text = "Welcome to Recall",
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
@@ -132,7 +125,8 @@ fun OnboardingScreen(
                     textAlign = TextAlign.Center,
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(
+                PillButton(
+                    text = "Open Settings",
                     onClick = {
                         val intent = Intent(
                             Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
@@ -140,11 +134,10 @@ fun OnboardingScreen(
                         )
                         context.startActivity(intent)
                     },
-                ) {
-                    Text("Open Settings")
-                }
+                )
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedButton(
+                OutlinedPillButton(
+                    text = "I've granted access",
                     onClick = {
                         viewModel.refreshPermissionState()
                         if (MediaPermissions.hasAllPermissions(context)) {
@@ -152,17 +145,17 @@ fun OnboardingScreen(
                             onOnboardingComplete()
                         }
                     },
-                ) {
-                    Text("I've granted access")
-                }
+                )
             }
             PermissionState.GRANTED -> {
-                Button(onClick = onOnboardingComplete) {
-                    Text("Continue")
-                }
+                PillButton(
+                    text = "Continue",
+                    onClick = onOnboardingComplete,
+                )
             }
             else -> {
-                Button(
+                PillButton(
+                    text = "Grant Access",
                     onClick = {
                         if (activity != null && viewModel.shouldShowRationale(activity)) {
                             viewModel.showRationaleDialog()
@@ -171,11 +164,51 @@ fun OnboardingScreen(
                             permissionLauncher.launch(MediaPermissions.requiredPermissions())
                         }
                     },
-                ) {
-                    Text("Grant Access")
-                }
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun PillButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(48.dp),
+        shape = CircleShape,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+        ),
+    ) {
+        Text(text = text, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+@Composable
+private fun OutlinedPillButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(48.dp),
+        shape = CircleShape,
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.primary,
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+    ) {
+        Text(text = text, style = MaterialTheme.typography.labelLarge)
     }
 }
 

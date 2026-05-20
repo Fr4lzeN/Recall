@@ -50,6 +50,12 @@ fun NavController.navigateToOnboarding() {
     }
 }
 
+fun NavController.navigateToDirectoryExclusions() {
+    navigate(RecallRoute.DIRECTORY_EXCLUSIONS) {
+        launchSingleTop = true
+    }
+}
+
 fun NavController.popBackFromDetail() {
     popBackStack()
 }

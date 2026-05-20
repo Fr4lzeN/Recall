@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PlayArrow
@@ -16,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.recall.app.core.designsystem.theme.RecallTheme
@@ -46,13 +49,13 @@ fun MediaGridItem(
                         .align(Alignment.BottomEnd)
                         .padding(6.dp)
                         .clip(MaterialTheme.shapes.extraSmall)
-                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f))
+                        .background(Color.Black.copy(alpha = 0.7f))
                         .padding(horizontal = 6.dp, vertical = 2.dp),
                 ) {
                     Text(
                         text = durationLabel,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        color = MaterialTheme.colorScheme.onBackground,
                     )
                 }
             }
@@ -73,14 +76,20 @@ fun MediaGridItem(
                 }
             }
             if (durationLabel != null && similarityScore == null) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Video",
+                Box(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .padding(bottom = 24.dp),
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                )
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.4f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "Video",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                    )
+                }
             }
         }
     }

@@ -5,29 +5,35 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -35,6 +41,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.recall.app.core.database.entity.MediaItemEntity
 import com.recall.app.core.designsystem.component.RecallTopBar
+import com.recall.app.core.designsystem.theme.DarkIndexedBadgeBg
+import com.recall.app.core.designsystem.theme.DarkIndexedBadgeText
+import com.recall.app.core.designsystem.theme.DarkNotIndexedBadgeBg
+import com.recall.app.core.designsystem.theme.DarkNotIndexedBadgeText
+import com.recall.app.core.designsystem.theme.DarkPanel
 import com.recall.app.core.designsystem.theme.RecallTheme
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -51,6 +62,7 @@ fun MediaDetailScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             RecallTopBar(
                 title = mediaItem?.displayName ?: "Media",
@@ -76,7 +88,7 @@ fun MediaDetailScreen(
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
             else -> {
@@ -126,14 +138,20 @@ private fun MediaPreview(
             contentScale = ContentScale.Fit,
         )
         if (isVideo) {
-            Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = "Video",
+            Box(
                 modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(32.dp),
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-            )
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Video",
+                    modifier = Modifier.size(40.dp),
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                )
+            }
         }
     }
 }
@@ -145,12 +163,11 @@ private fun MediaMetadataPanel(
 ) {
     Surface(
         modifier = modifier,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 2.dp,
+        color = DarkPanel,
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             IndexingStatusBadge(isIndexed = mediaItem.isIndexed)
             MetadataRow(label = "Filename", value = mediaItem.displayName)
@@ -175,22 +192,14 @@ private fun IndexingStatusBadge(
     modifier: Modifier = Modifier,
 ) {
     val label = if (isIndexed) "Indexed" else "Not indexed"
-    val containerColor = if (isIndexed) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.tertiaryContainer
-    }
-    val contentColor = if (isIndexed) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onTertiaryContainer
-    }
+    val containerColor = if (isIndexed) DarkIndexedBadgeBg else DarkNotIndexedBadgeBg
+    val contentColor = if (isIndexed) DarkIndexedBadgeText else DarkNotIndexedBadgeText
 
     Box(
         modifier = modifier
-            .clip(MaterialTheme.shapes.small)
+            .clip(CircleShape)
             .background(containerColor)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
     ) {
         Text(
             text = label,
@@ -206,16 +215,21 @@ private fun MetadataRow(
     value: String,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
         Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
+            text = label.uppercase(),
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(96.dp),
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
         )
     }
 }
