@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.recall.android.library)
+    alias(libs.plugins.recall.hilt)
 }
 
 android {
