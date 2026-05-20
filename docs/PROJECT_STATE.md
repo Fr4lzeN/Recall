@@ -1,24 +1,33 @@
 # Recall — Project State
 
-**Last updated:** Phase 0 (Project Setup Agent)  
-**Status:** Multi-module Gradle structure initialized; build verified.
+**Last updated:** 2026-05-20, after Phases 0–2, 4  
+**Status:** Foundation complete. UI skeleton, Room DB, and ML interfaces ready. Entering MediaStore + Vector Search.
+
+## Current Phase
+Phase 3 — MediaStore Integration (+ Phase 5 Vector Search interfaces in parallel)
+
+## Last Completed Phases
+- Phase 0 — Project Setup (multi-module Gradle, convention plugins)
+- Phase 1 — UI Skeleton (RecallTheme, navigation, stub screens, permissions)
+- Phase 2 — Room Database (entities, DAOs, type converters, Hilt DI)
+- Phase 4 — ML Embedding MVP (interfaces, MockEmbeddingModel, DeviceProfiler)
 
 ## Architecture
 
 ```
-:app
-├── :core:common          — shared utilities, dispatchers
-├── :core:database        — Room persistence
-├── :core:media           — media loading (Coil)
-├── :core:ml              — TensorFlow Lite inference
-├── :core:vector          — vector search utilities
-├── :core:worker          — WorkManager background jobs
-├── :core:designsystem    — Compose theme & components
-├── :feature:search
-├── :feature:timeline
-├── :feature:detail
-├── :feature:settings
-└── :feature:onboarding
+:app  (RecallApplication, MainActivity, NavHost, bottom nav)
+├── :core:common          — RecallDispatchers
+├── :core:database        — RecallDatabase (Room), 6 entities, 6 DAOs, Hilt module
+├── :core:media           — [PENDING] MediaStore scanner, thumbnails, keyframes
+├── :core:ml              — EmbeddingModel interface, MockEmbeddingModel, DeviceProfiler, ModelProfileSelector
+├── :core:vector          — [PENDING] VectorIndex interface, LinearScanIndex
+├── :core:worker          — [PENDING] WorkManager workers
+├── :core:designsystem    — RecallTheme (dark-first), common composables (SearchBar, MediaGridItem, etc.)
+├── :feature:search       — SearchScreen (stub), SearchViewModel
+├── :feature:timeline     — TimelineScreen (stub), TimelineViewModel
+├── :feature:detail       — MediaDetailScreen (stub), MediaDetailViewModel
+├── :feature:settings     — SettingsScreen (stub), SettingsViewModel
+└── :feature:onboarding   — OnboardingScreen (real permissions), OnboardingViewModel
 ```
 
 ## Build Configuration
@@ -35,29 +44,55 @@
 | Compose BOM | 2026.02.01 |
 | Hilt | 2.59.2 |
 | Room | 2.8.4 |
+| Navigation | 2.9.8 |
+| WorkManager | 2.11.2 |
+| Coil | 3.4.0 |
+| TFLite | 2.17.0 |
 
-## Convention Plugins (`build-logic/`)
+## Room Database (v1)
 
-- `recall.android.library` — Android library defaults
-- `recall.android.feature` — feature module (library + compose + hilt + nav deps)
-- `recall.android.application` — app module defaults
-- `recall.android.compose` — Compose BOM and UI dependencies
-- `recall.hilt` — Hilt + KSP wiring
+Entities: `MediaItemEntity`, `IndexingJobEntity`, `VectorSegmentEntity`, `VectorPostingEntity`, `AppSettingEntity`, `ModelProfileEntity`
 
-## Phase Progress
+DAOs: `MediaItemDao`, `IndexingJobDao`, `VectorSegmentDao`, `VectorPostingDao`, `AppSettingDao`, `ModelProfileDao`
 
-| Phase | Description | Status |
-|-------|-------------|--------|
-| 0 | Discovery & repository setup | **Complete** |
-| 1 | Core database & models | Pending |
-| 2 | ML pipeline | Pending |
-| 3 | Feature screens | Pending |
-| 4 | Background indexing | Pending |
-| 5 | Integration & polish | Pending |
+Schema exported to `core/database/schemas/`.
+
+## ML Pipeline
+
+- `EmbeddingModel` interface (embedImage, embedText)
+- `MockEmbeddingModel` (deterministic pseudo-random, normalized vectors)
+- `DeviceProfiler` (RAM, CPU, disk, NNAPI detection)
+- `ModelProfileSelector` (Lite/Standard/Pro based on device capabilities)
+- `ImagePreprocessor` (resize, RGB normalization)
+- Real TFLite model integration deferred to later Phase 4 work
+
+## Important Decisions
+
+- Dark-first theme with warm amber (#F5A623) accent
+- AGP 9.x: no explicit `kotlin-android` plugin (built into AGP)
+- KSP 2.3.7 for AGP 9 compatibility
+- `tensorflow-lite-support` removed due to LiteRT manifest conflict — will revisit
+- MockEmbeddingModel used for integration testing until real model available
+
+## Known Limitations
+
+- All feature screens are stubs (no real data)
+- No real ML model bundled (mock only)
+- `:core:media` not yet implemented
+- `:core:vector` not yet implemented
+- `:core:worker` not yet implemented
+- `tensorflow-lite-support` omitted due to namespace conflict
 
 ## Next Steps
 
-1. Define Room entities and DAOs in `:core:database`
-2. Implement ML embedding pipeline in `:core:ml`
-3. Build feature navigation graph in `:app`
-4. Add WorkManager indexing workers in `:core:worker`
+1. **Phase 3** — MediaStore Agent: MediaScanner, ThumbnailLoader, KeyframeExtractor, ContentObserver
+2. **Phase 5 prep** — Vector Search Agent: VectorIndex interface, LinearScanIndex
+3. **Phase 5** — Search MVP: wire SearchScreen end-to-end
+4. **Phase 8** — WorkManager Agent: background indexing pipeline
+5. **Phase 6** — HNSW implementation
+
+## Build/Test Status
+
+- `./gradlew assembleDebug`: **PASS** (418 tasks)
+- Unit tests: ConvertersTest (database), MockEmbeddingModelTest, ModelProfileTest (ml)
+- No lint errors
