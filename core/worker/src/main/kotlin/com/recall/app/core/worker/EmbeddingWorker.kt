@@ -11,6 +11,7 @@ import com.recall.app.core.database.dao.MediaItemDao
 import com.recall.app.core.database.entity.IndexingStatus
 import com.recall.app.core.media.thumbnail.ThumbnailLoader
 import com.recall.app.core.ml.EmbeddingModel
+import com.recall.app.core.vector.PersistableVectorIndex
 import com.recall.app.core.vector.VectorIndex
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -100,6 +101,8 @@ class EmbeddingWorker @AssistedInject constructor(
                 if (job.retryCount >= MAX_RETRIES) continue
             }
         }
+
+        (vectorIndex as? PersistableVectorIndex)?.persist()
 
         val remaining = indexingJobDao.getByStatus(IndexingStatus.PENDING, 1)
         return if (remaining.isNotEmpty()) {
