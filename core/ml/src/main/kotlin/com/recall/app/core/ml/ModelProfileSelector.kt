@@ -7,9 +7,10 @@ import javax.inject.Singleton
 class ModelProfileSelector @Inject constructor(
     private val deviceProfiler: DeviceProfiler,
 ) {
-    fun selectProfile(): ModelProfile {
-        val info = deviceProfiler.profile()
-        return when {
+    fun selectProfile(): ModelProfile = selectProfileForDevice(deviceProfiler.profile())
+
+    companion object {
+        fun selectProfileForDevice(info: DeviceInfo): ModelProfile = when {
             info.totalRamMb >= ModelProfile.PRO.minRamMb -> ModelProfile.PRO
             info.totalRamMb >= ModelProfile.STANDARD.minRamMb -> ModelProfile.STANDARD
             else -> ModelProfile.LITE
