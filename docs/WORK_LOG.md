@@ -262,3 +262,27 @@
 - **Tests/checks:** `./gradlew :core:ml:testDebugUnitTest` — PASS; `./gradlew :core:ml:compileDebugUnitTestKotlin` — PASS
 - **Branch:** `post-mvp`
 - **Follow-ups:** Bundle `mobileclip_*.tflite` in assets, androidTest golden-vector inference, dedicated text tower when support lib conflict is resolved
+
+---
+
+### Phase 7 - Segmented Vector Agent - Segmented HNSW with mmap reader
+- **Summary:** Implemented on-disk segmented vector index: binary segment format with CRC32 checksum, atomic segment publishing (tmp → rename), mmap-based `SegmentReader` with checksum validation, HNSW search directly on frozen segments (`SegmentHnswSearch`), multi-segment `SegmentedVectorIndex` with in-memory staging buffer (flush at 1000 vectors) and merged cross-segment top-K search. Room-backed `SegmentManifest` and `VectorPostingStore` in `:app`.
+- **Files changed:**
+  - `core/database/dao/VectorSegmentDao.kt` — `setDeletedCount()` query
+  - `core/vector/hnsw/HnswIndex.kt` — `exportEntries()`, `exportForSegment()`
+  - `core/vector/hnsw/SegmentGraphExport.kt` — graph export data class
+  - `core/vector/segment/`: `SegmentFormat.kt`, `SegmentWriter.kt`, `SegmentReader.kt`, `SegmentHnswSearch.kt`, `VectorPostingStore.kt`, `SegmentManifest.kt` (return type fix)
+  - `core/vector/segmented/SegmentedVectorIndex.kt`
+  - `app/data/vector/`: `RoomSegmentManifest.kt`, `RoomVectorPostingStore.kt`
+  - `core/vector/src/test/segment/`: `SegmentFormatTest`, `SegmentWriterReaderTest`, `SegmentTestDoubles`
+  - `core/vector/src/test/segmented/SegmentedVectorIndexTest`
+- **Decisions made:**
+  - **MappedByteBuffer over NDK** — pure Kotlin/JVM mmap for segment reads; no native code dependency
+  - **VectorPostingStore interface** — keeps `:core:vector` free of Room; `:app` provides `RoomVectorPostingStore`
+  - **Staging buffer flush threshold = 1000** — in-memory `HnswIndex` accumulates new vectors until threshold, then flushes to immutable on-disk segment
+  - **Atomic publish** — `SegmentWriter` writes to `.tmp` then renames; aligns with `StartupIntegrityChecker` tmp cleanup
+  - **CRC32 checksum** — segment footer validates integrity on mmap open
+- **Tests/checks:** `./gradlew :core:vector:testDebugUnitTest` — PASS (format checksum, write/read roundtrip, cross-segment search + deletion); `./gradlew assembleDebug` — PASS
+- **Branch:** `post-mvp`
+- **Commit:** `53fe180` — Phase 7 - Segmented Vector Agent: add segmented HNSW with mmap reader and atomic publishing
+- **Follow-ups:** Wire `SegmentedVectorIndex` in `VectorModule`, migrate existing `hnsw.idx` data to segments

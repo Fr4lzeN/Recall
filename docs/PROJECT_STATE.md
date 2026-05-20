@@ -1,13 +1,13 @@
 # Recall — Project State
 
-**Last updated:** 2026-05-21, after Phase 4b (TFLite embedding on `post-mvp`)  
-**HEAD (main):** `6e7136a` — 12 commits  
-**HEAD (post-mvp):** (pending commit) — Phase 4b TFLite embedding  
-**Status:** HNSW + persistence + benchmarks complete. `TFLiteEmbeddingModel` integrated with asset-probe fallback to mock. Next: Phase 7 (segmented mmap index), bundle real `.tflite` assets + golden tests.
+**Last updated:** 2026-05-21, after Phase 7 (segmented HNSW + mmap on `post-mvp`)  
+**HEAD (main):** `6e7136a` — 12 commits (pre-merge)  
+**HEAD (post-mvp):** `53fe180` — Phase 7 segmented vector engine  
+**Status:** Post-MVP feature set complete: HNSW + persistence + benchmarks + TFLite embedding + segmented mmap index. App still binds `PersistentVectorIndex`; wire `SegmentedVectorIndex` when ready. Next: bundle MobileCLIP `.tflite` assets + golden tests.
 
 ## Current Phase
 
-**Post-MVP** — on branch `post-mvp`. HNSW, persistence, benchmarks, and TFLite embedding scaffold (Phase 4b) are complete. Remaining: Phase 7 (segmented HNSW + mmap), bundle MobileCLIP `.tflite` assets.
+**Post-MVP complete** — on branch `post-mvp`. All planned post-MVP phases are done: UX polish (11b), HNSW (6/6.1), benchmarks (10b), TFLite embedding (4b), segmented on-disk index (7). Ready to merge into `main`. Remaining follow-up: wire `SegmentedVectorIndex` in `VectorModule`, bundle `.tflite` assets.
 
 ## Completed Work (12 commits on `main`)
 
@@ -36,7 +36,7 @@
 ├── :core:designsystem     RecallTheme, SearchBar, MediaGridItem, TopBar, Loading/Empty/Error
 ├── :core:media            MediaScanner, ThumbnailLoader, KeyframeExtractor, MediaContentObserver, MediaSyncManager
 ├── :core:ml               EmbeddingModel, TFLiteEmbeddingModel, MockEmbeddingModel (fallback), DeviceProfiler, ModelProfileSelector, MlModule
-├── :core:vector           VectorIndex, LinearScanIndex, VectorDistance, DeletionBitmap, SegmentManifest (stub)
+├── :core:vector           VectorIndex, HNSW, PersistentVectorIndex, SegmentedVectorIndex, segment format (mmap), benchmarks
 ├── :core:worker           MediaScanWorker, EmbeddingWorker, IntegrityCheckWorker, IndexingPipelineManager, recovery
 ├── :feature:search        SearchScreen + SearchViewModel (vector search)
 ├── :feature:timeline      TimelineScreen + TimelineViewModel (Room Flow grid, date headers)
@@ -141,11 +141,13 @@ Convention plugins in `:build-logic`: `recall.android.library`, `recall.android.
 | `PersistentVectorIndex` | **Done** — wraps HnswIndex with atomic file-based persistence |
 | `VectorDistance` | Done — cosine similarity / distance helpers |
 | `DeletionBitmap` | Done — soft-delete bookkeeping (tests) |
-| `SegmentManifest` / `VectorSegment` | Placeholder interfaces for Phase 7 |
-| App binding | `VectorModule` → `PersistentVectorIndex(HnswIndex)` (was LinearScan) |
+| `SegmentManifest` / `VectorPostingStore` | **Done** — interfaces + Room impls (`RoomSegmentManifest`, `RoomVectorPostingStore`) |
+| `SegmentFormat` / `SegmentWriter` / `SegmentReader` | **Done** — binary layout (header, vectors, HNSW graph, CRC32), atomic tmp→rename publish |
+| `SegmentHnswSearch` | **Done** — HNSW greedy search on mmap'd segment files |
+| `SegmentedVectorIndex` | **Done** — staging `HnswIndex` (flush at 1000 vectors), frozen mmap segments, merged top-K search |
+| App binding | `VectorModule` → `PersistentVectorIndex` (segmented engine available, not yet wired) |
 | Settings `clearIndex()` | Clears index + resets `is_indexed` flags in Room |
 | Benchmark suite | **Done** — search latency, indexing throughput, recall, memory, serialization |
-| Segmented on-disk index | **Not started** (Phase 7) |
 
 ## WorkManager Pipeline Status
 
@@ -206,18 +208,18 @@ Convention plugins in `:build-logic`: `recall.android.library`, `recall.android.
 
 ## Next Steps
 
-1. **Phase 7** — Segmented on-disk vector storage (`VectorSegmentEntity`, `SegmentManifest` impl, mmap/MappedByteBuffer reader).
+1. **Wire segmented index** — Switch `VectorModule` from `PersistentVectorIndex` to `SegmentedVectorIndex.open()` with Room manifest/posting store.
 2. **Phase 4b (follow-up)** — Bundle MobileCLIP `.tflite` assets, golden-vector androidTests, resolve `tensorflow-lite-support` for text tower.
 3. **Performance** — Batch embed, incremental index updates.
 4. **Polish** — Model profile picker, observer-driven incremental sync, search → detail from results.
-5. **Merge** — Merge `post-mvp` → `main` when stable.
 
 ## Build / Test Status
 
-| Check | Result (verified on `post-mvp` `9fd48e9`, 2026-05-20) |
+| Check | Result (verified on `post-mvp` `53fe180`, 2026-05-21) |
 |-------|--------------------------------------------------------|
 | `./gradlew assembleDebug` | **PASS** |
-| `./gradlew testDebugUnitTest` | **PASS** — **68+** JVM tests + benchmark suite |
-| Test modules | `:core:common` (2), `:core:database` (16), `:core:ml` (14), `:core:vector` (36 + benchmarks) |
+| `./gradlew testDebugUnitTest` | **PASS** — **74+** JVM tests + benchmark suite |
+| Test modules | `:core:common` (2), `:core:database` (16), `:core:ml` (14+), `:core:vector` (42 + benchmarks) |
+| Phase 7 tests | `SegmentFormatTest`, `SegmentWriterReaderTest`, `SegmentedVectorIndexTest` |
 | Benchmark suite | Search, indexing, recall, memory, serialization benchmarks in `:core:vector` |
 | Lint | No dedicated lint gate documented |
