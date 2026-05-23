@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280,initial-scale=1">
+<title>ВКР — Recall: Семантический анализ медиатеки</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+    background: #1a1a2e;
+    color: #222;
+    overflow: hidden;
+  }
+
+  .deck { position: relative; width: 100vw; height: 100vh; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: none; flex-direction: column;
+    width: 1280px; height: 720px;
+    margin: auto;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.35);
+    overflow: hidden;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+  }
+  .slide.active { display: flex; }
+
+  /* ── header bar ── */
+  .slide-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 40px;
+    background: linear-gradient(135deg, #0d47a1, #1565c0 40%, #42a5f5);
+    color: #fff; font-size: 13px; font-weight: 500;
+    flex-shrink: 0;
+  }
+  .slide-header .logo-area {
+    display: flex; align-items: center; gap: 14px;
+  }
+  .slide-header .logo-placeholder {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: rgba(255,255,255,.2); border: 2px solid rgba(255,255,255,.5);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: #fff;
+  }
+  .slide-header .uni-name { font-size: 14px; letter-spacing: .3px; }
+  .slide-header .site { font-size: 13px; opacity: .85; }
+
+  /* ── main content ── */
+  .slide-body {
+    flex: 1; padding: 28px 44px 16px; position: relative;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* decorative right gradient blob */
+  .slide-body::after {
+    content: '';
+    position: absolute; right: -60px; bottom: -80px;
+    width: 320px; height: 420px;
+    background: radial-gradient(ellipse at center, rgba(66,165,245,.12) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .slide-body > * { position: relative; z-index: 1; }
+
+  .slide-title {
+    font-size: 28px; font-weight: 700; color: #1a237e;
+    margin-bottom: 20px; line-height: 1.2;
+  }
+  .slide-title .check { color: #43a047; margin-left: 8px; }
+
+  /* ── footer ── */
+  .slide-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 44px;
+    border-top: 1px solid #e0e0e0;
+    font-size: 11px; color: #999;
+    flex-shrink: 0;
+  }
+  .slide-footer .motto { text-transform: uppercase; letter-spacing: 2px; font-weight: 600; color: #aaa; }
+  .slide-num { font-weight: 600; font-size: 13px; color: #999; }
+
+  /* ── common components ── */
+
+  /* placeholder box for images / diagrams */
+  .placeholder {
+    background: #f5f7fa; border: 2px dashed #bdbdbd; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    color: #9e9e9e; font-size: 13px; gap: 6px;
+    min-height: 100px;
+  }
+  .placeholder .ph-icon { font-size: 32px; opacity: .5; }
+
+  /* stat cards */
+  .stat-row {
+    display: flex; gap: 16px; flex-wrap: wrap;
+  }
+  .stat-card {
+    flex: 1; min-width: 160px;
+    background: #f5f7fa; border-radius: 12px; padding: 16px 20px;
+    text-align: center;
+  }
+  .stat-card .stat-val {
+    font-size: 28px; font-weight: 800; color: #1565c0;
+  }
+  .stat-card .stat-label {
+    font-size: 12px; color: #666; margin-top: 4px; line-height: 1.3;
+  }
+
+  /* numbered cards */
+  .cards-grid {
+    display: grid; gap: 14px;
+  }
+  .cards-2x3 { grid-template-columns: repeat(3, 1fr); }
+  .cards-2x4 { grid-template-columns: repeat(4, 1fr); }
+  .cards-2x5 { grid-template-columns: repeat(5, 1fr); }
+
+  .num-card {
+    background: #f5f7fa; border-radius: 12px; padding: 14px 16px;
+    border-left: 4px solid #1565c0; position: relative;
+  }
+  .num-card .nc-num {
+    position: absolute; top: 10px; left: -2px;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #1565c0; color: #fff;
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .num-card .nc-title { font-size: 13px; font-weight: 700; color: #1a237e; margin-bottom: 4px; margin-left: 28px; }
+  .num-card .nc-text { font-size: 11px; color: #555; line-height: 1.4; }
+  .num-card.green { border-left-color: #43a047; }
+  .num-card.green .nc-num { background: #43a047; }
+  .num-card.orange { border-left-color: #ef6c00; }
+  .num-card.orange .nc-num { background: #ef6c00; }
+  .num-card.purple { border-left-color: #7b1fa2; }
+  .num-card.purple .nc-num { background: #7b1fa2; }
+  .num-card.red { border-left-color: #c62828; }
+  .num-card.red .nc-num { background: #c62828; }
+  .num-card.teal { border-left-color: #00897b; }
+  .num-card.teal .nc-num { background: #00897b; }
+
+  /* tables */
+  table.cmp {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+  }
+  table.cmp th {
+    background: #1565c0; color: #fff; padding: 10px 12px;
+    text-align: left; font-weight: 600;
+  }
+  table.cmp th:first-child { border-radius: 8px 0 0 0; }
+  table.cmp th:last-child { border-radius: 0 8px 0 0; }
+  table.cmp td {
+    padding: 8px 12px; border-bottom: 1px solid #eee;
+  }
+  table.cmp tr:last-child td { border-bottom: none; }
+  table.cmp tr:nth-child(even) { background: #f9fafb; }
+  table.cmp .yes { color: #43a047; font-weight: 700; }
+  table.cmp .no { color: #e53935; font-weight: 700; }
+  table.cmp .part { color: #ff9800; font-weight: 700; }
+  table.cmp .hl { background: #e3f2fd; font-weight: 600; }
+
+  /* tech cards */
+  .tech-card {
+    background: #f5f7fa; border-radius: 12px; padding: 16px;
+    text-align: center;
+  }
+  .tech-card .tc-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    margin: 0 auto 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 800; color: #fff;
+  }
+  .tech-card .tc-name { font-size: 14px; font-weight: 700; color: #1a237e; }
+  .tech-card .tc-desc { font-size: 10px; color: #777; margin-top: 4px; line-height: 1.3; }
+
+  /* result metric cards */
+  .metric-card {
+    background: #f5f7fa; border-radius: 14px; padding: 14px 10px;
+    text-align: center;
+  }
+  .metric-card .mc-icon { font-size: 24px; margin-bottom: 4px; }
+  .metric-card .mc-val { font-size: 22px; font-weight: 800; color: #1565c0; }
+  .metric-card .mc-label { font-size: 10px; color: #666; margin-top: 2px; line-height: 1.3; }
+
+  /* phone mockup placeholders */
+  .phones-row {
+    display: flex; gap: 14px; justify-content: center;
+  }
+  .phone-mock {
+    width: 140px; height: 260px;
+    background: #1a1a2e; border-radius: 18px; border: 3px solid #333;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #9e9e9e; font-size: 10px; text-align: center; padding: 10px;
+    position: relative; overflow: hidden;
+  }
+  .phone-mock .pm-screen {
+    flex: 1; width: 100%; background: #222; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 4px; padding: 8px;
+  }
+  .phone-mock .pm-notch {
+    width: 50px; height: 6px; border-radius: 3px; background: #333;
+    margin-bottom: 4px;
+  }
+  .phone-mock .pm-label {
+    font-size: 10px; font-weight: 600; color: #90caf9;
+  }
+  .phone-mock .pm-sub {
+    font-size: 8px; color: #666; line-height: 1.2;
+  }
+
+  /* columns layout */
+  .cols { display: flex; gap: 24px; }
+  .col { flex: 1; }
+
+  /* bullet list */
+  .blist { list-style: none; padding: 0; }
+  .blist li {
+    padding: 6px 0 6px 20px; font-size: 14px; color: #333;
+    position: relative; line-height: 1.5;
+  }
+  .blist li::before {
+    content: ''; position: absolute; left: 0; top: 13px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #1565c0;
+  }
+
+  .text-sm { font-size: 12px; }
+  .text-muted { color: #888; }
+  .mt-8 { margin-top: 8px; }
+  .mt-12 { margin-top: 12px; }
+  .mt-16 { margin-top: 16px; }
+  .mt-auto { margin-top: auto; }
+  .mb-8 { margin-bottom: 8px; }
+  .fw-600 { font-weight: 600; }
+  .text-center { text-align: center; }
+  .flex-1 { flex: 1; }
+
+  .subtitle {
+    font-size: 15px; color: #555; margin-bottom: 14px; font-weight: 500;
+  }
+
+  .highlight-box {
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    border-radius: 10px; padding: 14px 20px;
+    font-size: 13px; color: #1a237e; font-weight: 500;
+    border-left: 4px solid #1565c0;
+  }
+
+  .tag {
+    display: inline-block; background: #e3f2fd; color: #1565c0;
+    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  }
+
+  /* title slide special */
+  .title-slide .slide-body {
+    display: flex; align-items: center; justify-content: center;
+    text-align: center;
+  }
+  .title-center { max-width: 800px; }
+  .title-center .main-title {
+    font-size: 24px; font-weight: 700; color: #1a237e; line-height: 1.35;
+    margin-bottom: 20px;
+  }
+  .title-center .meta { font-size: 14px; color: #555; line-height: 1.8; }
+  .title-center .meta strong { color: #333; }
+
+  /* ── conclusion green box ── */
+  .conclusion-box {
+    background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+    border-radius: 12px; padding: 18px 24px;
+    border-left: 4px solid #43a047;
+  }
+  .conclusion-box p { font-size: 14px; color: #2e7d32; line-height: 1.5; }
+
+  /* nav hint */
+  .nav-hint {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,255,.4); font-size: 12px; z-index: 100;
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* formula */
+  .formula {
+    background: #f5f7fa; border-radius: 8px; padding: 10px 16px;
+    font-family: 'Cambria Math', 'Times New Roman', serif;
+    font-size: 16px; color: #1a237e; text-align: center;
+    border: 1px solid #e0e0e0;
+  }
+
+  .arch-block {
+    background: #f5f7fa; border-radius: 10px; padding: 10px 14px;
+    font-size: 11px; color: #333; border: 1px solid #e0e0e0;
+  }
+  .arch-block .ab-title {
+    font-size: 12px; font-weight: 700; color: #1565c0; margin-bottom: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+<!-- ════════════════════ SLIDE 1 — TITLE ════════════════════ -->
+<div class="slide active title-slide" data-n="1">
+  <div class="slide-header">
+    <div class="logo-area">
+      <div class="logo-placeholder">РТУ</div>
+      <span class="uni-name">МИРЭА — Российский технологический университет</span>
+    </div>
+    <span class="site">mirea.ru</span>
+  </div>
+  <div class="slide-body">
+    <div class="title-center">
+      <div style="margin-bottom:16px">
+        <span class="tag">Выпускная квалификационная работа</span>
+      </div>
+      <div class="main-title">
+        Кроссплатформенное мобильное приложение для семантического анализа медиатеки<br>
+        с использованием встраиваемых LLM
+      </div>
+      <div class="meta">
+        <strong>Студент:</strong> Миняев М.И., группа ИКБО-06-22<br>
+        <strong>Руководитель:</strong> [ ФИО руководителя ]<br>
+        <strong>Кафедра:</strong> Математическое обеспечение и стандартизация информационных технологий
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span class="motto">Вместе создаём будущее</span>
+    <span class="slide-num">1</span>
+  </div>
+</div>
+
+<!-- ════════════════════ SLIDE 2 — PROBLEM ════════════════════ -->
+<div class="slide" data-n="2">
+  <div class="slide-header">
+    <div class="logo-area">
+      <div class="logo-placeholder">РТУ</div>
+      <span class="uni-name">МИРЭА — Российский технологический университет</span>
+    </div>
+    <span class="site">mirea.ru</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-title">Проблема и её актуальность</div>
+
+    <div class="stat-row mb-8">
+      <div class="stat-card">
+        <div class="stat-val">4,88 млрд</div>
+        <div class="stat-label">пользователей смартфонов<br>(60% населения Земли)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">952+</div>
+        <div class="stat-label">среднее количество<br>фотографий на устройстве</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">70+ TOPS</div>
+        <div class="stat-label">мощность NPU<br>мобильных устройств (2025)</div>
+      </div>
+    </div>
+
+    <div class="cards-grid cards-2x3 mt-12" style="flex:1;">
+      <div class="num-card">
+        <div class="nc-num">1</div>
+        <div class="nc-title">Поиск по смыслу</div>
+        <div class="nc-text">Пользователь помнит содержимое («чек из аптеки»), а не метаданные файла</div>
+      </div>
+      <div class="num-card orange">
+        <div class="nc-num">2</div>
+        <div class="nc-title">Конфиденциальность</div>
+        <div class="nc-text">Передача личных фотографий в облако создаёт риски утечки персональных данных</div>
+      </div>
+      <div class="num-card red">
+        <div class="nc-num">3</div>
+        <div class="nc-title">Автономность</div>
+        <div class="nc-text">Зависимость от интернета делает поиск недоступным в офлайн-условиях</div>
+      </div>
+    </div>
+
+    <div class="highlight-box mt-12">
+      ⚡ Ни одно существующее решение не объединяет семантический поиск, конфиденциальность и офлайн-работу одновременно
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span class="motto">Вместе создаём будущее</span>
+    <span class="slide-num">2</span>
+  </div>
+</div>
+
+<!-- ════════════════════ SLIDE 3 — GOALS ════════════════════ -->
+<div class="slide" data-n="3">
+  <div class="slide-header">
+    <div class="logo-area">
+      <div class="logo-placeholder">РТУ</div>
+      <span class="uni-name">МИРЭА — Российский технологический университет</span>
+    </div>
+    <span class="site">mirea.ru</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-title">Цель и задачи работы <span class="check">✔</span></div>
+
+    <div style="font-size:14px; color:#333; line-height:1.6; margin-bottom:18px; padding:12px 16px; background:#f5f7fa; border-radius:10px; border-left:4px solid #1565c0;">
+      <strong>Цель:</strong> Проведение исследования и разработка программного решения — кроссплатформенного мобильного приложения для семантического поиска по локальной медиатеке с использованием встроенных LLM, обеспечивающего интеллектуальный поиск изображений при полной автономности и конфиденциальности данных.
+    </div>
+
+    <div style="font-size:14px; font-weight:700; color:#1a237e; margin-bottom:10px;">Задачи:</div>
+    <ul class="blist">
+      <li>Проанализировать предметную область и подходы к on-device инференсу</li>
+      <li>Исследовать существующие мобильные решения (системы-аналоги)</li>
+      <li>Сформировать функциональные и нефункциональные требования</li>
+      <li>Разработать архитектуру мобильного приложения (C4, Clean Architecture)</li>
+      <li>Реализовать систему индексации и семантического поиска (CLIP + HNSW)</li>
+      <li>Разработать пользовательский интерфейс (Jetpack Compose, Material 3)</li>
+      <li>Провести тестирование системы (unit, benchmark, функциональное)</li>
+      <li>Оценить производительность и экономическую эффективность</li>
+    </ul>
+  </div>
+  <div class="slide-footer">
+    <span class="motto">Вместе создаём будущее</span>
+    <span class="slide-num">3</span>
+  </div>
+</div>
+
+<!-- ════════════════════ SLIDE 4 — ANALOGS ════════════════════ -->
+<div class="slide" data-n="4">
+  <div class="slide-header">
+    <div class="logo-area">
+      <div class="logo-placeholder">РТУ</div>
+      <span class="uni-name">МИРЭА — Российский технологический университет</span>
+    </div>
+    <span class="site">mirea.ru</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-title">Сравнительный анализ существующих решений <span class="check">✔</span></div>
+
+    <table class="cmp">
+      <thead>
+        <tr>
+          <th style="width:30%">Критерий</th>
+          <th>Google Photos</th>
+          <th>Apple Photos</th>
+          <th>Immich</th>
+          <th>Simple Gallery</th>
+          <th class="hl">Recall</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Семантический поиск</td>
+          <td class="yes">+</td><td class="part">±</td><td class="yes">+</td><td class="no">−</td><td class="yes hl">+</td>
+        </tr>
+        <tr>
+          <td>Полная офлайн-работа</td>
+          <td class="no">−</td><td class="no">−</td><td class="no">−</td><td class="yes">+</td><td class="yes hl">+</td>
+        </tr>
+        <tr>
+          <td>Конфиденциальность данных</td>
+          <td class="no">−</td><td class="part">±</td><td class="part">±</td><td class="yes">+</td><td class="yes hl">+</td>
+        </tr>
+        <tr>
+          <td>Кроссплатформенность</td>
+          <td class="yes">+</td><td class="no">−</td><td class="yes">+</td><td class="no">−</td><td class="yes hl">+</td>
+        </tr>
+        <tr>
+          <td>On-device ML-инференс</td>
+          <td class="no">−</td><td class="part">±</td><td class="no">−</td><td class="no">−</td><td class="yes hl">+</td>
+        </tr>
+        <tr>
+          <td>Открытая архитектура модели</td>
+          <td class="no">−</td><td class="no">−</td><td class="yes">+</td><td class="no">−</td><td class="yes hl">+</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="highlight-box mt-16">
+      Незакрытая ниша: <strong>семантический поиск + полная офлайн-работа + конфиденциальность + кроссплатформенность</strong>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span class="motto">Вместе создаём будущее</span>
+    <span class="slide-num">4</span>
+  </div>
+</div>
+
+<!-- ════════════════════ SLIDE 5 — ARCHITECTURE ════════════════════ -->
+<div class="slide" data-n="5">
+  <div class="slide-header">
+    <div class="logo-area">
+      <div class="logo-placeholder">РТУ</div>
+      <span class="uni-name">МИРЭА — Российский технологический университет</span>
+    </div>
+    <span class="site">mirea.ru</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-title">Архитектура программного решения</div>
+
+    <div class="cols" style="flex:1;">
+      <div class="col" style="flex:1.3;">
+        <div class="placeholder" style="height:100%; min-height: 340px;">
+          <div class="ph-icon">📐</div>
+          <div>[ Компонентная диаграмма C4 ]</div>
+          <div class="text-sm text-muted">Вставить диаграмму из раздела 2.1 отчёта</div>
+        </div>
+      </div>
+      <div class="col" style="flex:0.9;">
+        <div class="arch-block mb-8">
+          <div class="ab-title">🎨 UI Layer</div>
+          Jetpack Compose · Material 3 · Navigation Compose
+        </div>
+        <div class="arch-block mb-8">
+          <div class="ab-title">📦 Feature Modules</div>
+          Search · Timeline · Detail · Settings · Onboarding · Directory Exclusion
+        </div>
+        <div class="arch-block mb-8">
+          <div class="ab-title">⚙️ Core Modules</div>
+          :core:ml — TFLite CLIP, DeviceProfiler<br>
+          :core:vector — HNSW, Segmented Index, mmap<br>
+          :core:database — Room, 6 сущностей<br>
+          :core:worker — WorkManager pipeline<br>
+          :core:media — MediaStore, Thumbnails
+        </div>
+        <div class="arch-block">
+          <div class="ab-title">🏗 Принципы</div>
+          Clean Architecture · Однонаправленные зависимости · Hilt DI
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span class="motto">Вместе создаём будущее</span>
+    <span class="slide-num">5</span>
+  </div>
+</div>
+
+<!-- ════════════════════ SLIDE 6 — TECH STACK ════════════════════ -->
+<div class="slide" data-n="6">
+  <div class="slide-header">
+    <div class="logo-area">
+      <div class="logo-placeholder">РТУ</div>
+      <span class="uni-name">МИРЭА — Российский технологический университет</span>
+    </div>
+    <span class="site">mirea.ru</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-title">Технологический стек</div>
+
+    <div class="cards-grid cards-2x4" style="flex:1;">
+      <div class="tech-card">
+        <div class="tc-icon" style="background:linear-gradient(135deg,#7B1FA2,#9C27B0);">K</div>
+        <div class="tc-name">Kotlin</div>
+        <div class="tc-desc">Основной язык разработки. Обеспечивает безопасность, надёжность и удобство</div>
+      </div>
+      <div class="tech-card">
+        <div class="tc-icon" style="background:linear-gradient(135deg,#43a047,#66bb6a);">JC</div>
+        <div class="tc-name">Jetpack Compose</div>
+        <div class="tc-desc">Декларативный UI-фреймворк с Material 3 Design</div>
+      </div>
+      <div class="tech-card">
+        <div class="tc-icon" style="background:linear-gradient(135deg,#1565c0,#42a5f5);">R</div>
+        <div class="tc-name">Room</div>
+        <div class="tc-desc">ORM для SQLite. Типобезопасные запросы и миграции</div>
+      </div>
+      <div class="tech-card">
+        <div class="tc-icon" style="background:linear-gradient(135deg,#e65100,#ff9800);">TF</div>
+        <div class="tc-name">TensorFlow Lite</div>
+        <div class="tc-desc">On-device инференс CLIP-модели. GPU/NNAPI делегирование</div>
+      </div>
+      <div class="tech-card">
+        <div class="tc-icon" style="background:linear-gradient(135deg,#c62828,#ef5350);">H</div>
+        <div class="tc-name">HNSW</div>
+        <div class="tc-desc">Графовый алгоритм приближённого поиска ближайших соседей</div>
+      </div>
+      <div class="tech-card">
+        <div class="tc-icon" style="background:linear-gradient(135deg,#00695c,#26a69a);">WM</div>
+        <div class="tc-name">WorkManager</div>
+        <div class="tc-desc">Фоновая индексация с учётом заряда батареи и температуры</div>
+      </div>
+      <div class="tech-card">
+        <div class="tc-icon" style="background:linear-gradient(135deg,#37474f,#78909c);">DI</div>
+        <div class="tc-name">Hilt</div>
+        <div class="tc-desc">Dependency Injection для модульной архитектуры</div>
+      </div>
+      <div class="tech-card">
+        <div class="tc-icon" style="background:linear-gradient(135deg,#1a237e,#5c6bc0);">G</div>
+        <div class="tc-name">Git</div>
+        <div class="tc-desc">Система контроля версий. Многомодульная Gradle сборка</div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:24px; margin-top:14px;">
+      <div style="display:flex; align-items:center; gap:8px; font-size:12px; color:#555;">
+        <span style="font-size:18px;">🛡</span> <strong>Надёжность</strong>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; font-size:12px; color:#555;">
+        <span style="font-size:18px;">⚡</span> <strong>Производительность</strong>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; font-size:12px; color:#555;">
+        <span style="font-size:18px;">📈</span> <strong>Масштабируемость</strong>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span class="motto">Вместе создаём будущее</span>
+    <span class="slide-num">6</span>
+  </div>
+</div>
+
+<!-- ════════════════════ SLIDE 7 — MATH ════════════════════ -->
+<div class="slide" data-n="7">
+  <div class="slide-header">
+    <div class="logo-area">
+      <div class="logo-placeholder">РТУ</div>
+      <span class="uni-name">МИРЭА — Российский технологический университет</span>
+    </div>
+    <span class="site">mirea.ru</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-title">Математическое обеспечение</div>
+
+    <div class="cols" style="flex:1; gap:20px;">
+      <div class="col">
+        <div class="subtitle">Генерация эмбеддингов</div>
+        <div class="formula mb-8">f<sub>img</sub> : ℝ<sup>H×W×C</sup> → ℝ<sup>d</sup>&nbsp;&nbsp;(CLIP ViT)</div>
+        <div class="formula mb-8">f<sub>text</sub> : tokens → ℝ<sup>d</sup>&nbsp;&nbsp;(текстовый энкодер)</div>
+        <div class="formula mb-8">v̂ = v / ‖v‖<sub>2</sub>&nbsp;&nbsp;(L2-нормализация)</div>
+
+        <div class="subtitle mt-12">Поиск ближайшего соседа</div>
+        <div class="formula mb-8">sim(q̂, v̂<sub>i</sub>) = q̂ · v̂<sub>i</sub> ∈ [−1, 1]</div>
+        <div class="formula">Results = { i | sim(q̂, v̂<sub>i</sub>) ≥ τ }</div>
+      </div>
+      <div class="col">
+        <div class="cards-grid" style="grid-template-columns:1fr 1fr; gap:10px;">
+          <div class="num-card">
+            <div class="nc-title" style="margin-left:0;">HNSW-граф</div>
+            <div class="nc-text">Логарифмическая сложность поиска O(log n). Многоуровневая навигация</div>
+          </div>
+          <div class="num-card green">
+            <div class="nc-title" style="margin-left:0;">Сегментная адресация</div>
+            <div class="nc-text">offset(k) = k × d × sizeof(float32). mmap-доступ O(1)</div>
+          </div>
+          <div class="num-card orange">
+            <div class="nc-title" style="margin-left:0;">Adaptive efSearch</div>
+            <div class="nc-text">Динамическая регулировка параметров в зависимости от размера индекса</div>
+          </div>
+          <div class="num-card purple">
+            <div class="nc-title" style="margin-left:0;">Device Profiling</div>
+            <div class="nc-text">Авто-выбор ML-профиля: Lite (384d) / Standard (512d) / Pro (512d)</div>
+          </div>
+        </div>
+
+        <div class="placeholder mt-12" style="min-height:100px;">
+          <div class="ph-icon">📊</div>
+          <div>[ Схема единого векторного пространства CLIP ]</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span class="motto">Вместе создаём будущее</span>
+    <span class="slide-num">7</span>
+  </div>
+</div>
+
+<!-- ════════════════════ SLIDE 8 — DATABASE ════════════════════ -->
+<div class="slide" data-n="8">
+  <div class="slide-header">
+    <div class="logo-area">
+      <div class="logo-placeholder">РТУ</div>
+      <span class="uni-name">МИРЭА — Российский технологический университет</span>
+    </div>
+    <span class="site">mirea.ru</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-title">Логическая модель базы данных</div>
+
+    <div class="cols" style="flex:1;">
+      <div class="col" style="flex:1.4;">
+        <div class="placeholder" style="height:100%; min-height:340px;">
+          <div class="ph-icon">🗂</div>
+          <div>[ ER-диаграмма базы данных ]</div>
+          <div class="text-sm text-muted">Вставить диаграмму из рисунка 2.9 отчёта</div>
+          <div class="text-sm text-muted">6 сущностей: MediaItemEntity, IndexingJobEntity,<br>VectorSegmentEntity, VectorPostingEntity,<br>AppSettingEntity, ModelProfileEntity</div>
+        </div>
+      </div>
+      <div class="col" style="flex:0.8;">
+        <div style="font-size:13px; font-weight:700; color:#1a237e; margin-bottom:10px;">Ключевые решения:</div>
+
+        <div class="num-card mb-8">
+          <div class="nc-title" style="margin-left:0;">💾 Векторы вне SQLite</div>
+          <div class="nc-text">Эмбеддинги хранятся в бинарных сегментах с mmap-доступом, а не в BLOB-полях</div>
+        </div>
+        <div class="num-card green mb-8">
+          <div class="nc-title" style="margin-left:0;">🔗 CASCADE FK</div>
+          <div class="nc-text">Автоматическая очистка связанных записей при удалении медиафайлов</div>
+        </div>
+        <div class="num-card orange mb-8">
+          <div class="nc-title" style="margin-left:0;">⚡ WAL-режим</div>
+          <div class="nc-text">Write-Ahead Logging для конкурентного чтения/записи без блокировок</div>
+        </div>
+        <div class="num-card purple">
+          <div class="nc-title" style="margin-left:0;">📋 Room + KSP</div>
+          <div class="nc-text">Типобезопасные DAO с генерацией кода на этапе компиляции</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span class="motto">Вместе создаём будущее</span>
+    <span class="slide-num">8</span>
+  </div>
+</div>
+
+<!-- ════════════════════ SLIDE 9 — BPMN ════════════════════ -->
+<div class="slide" data-n="9">
+  <div class="slide-header">
+    <div class="logo-area">
+      <div class="logo-placeholder">РТУ</div>
+      <span class="uni-name">МИРЭА — Российский технологический университет</span>
+    </div>
+    <span class="site">mirea.ru</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-title">Целевая модель бизнес-процессов (TO-BE)</div>
+
+    <div class="cols" style="flex:1;">
+      <div class="col">
+        <div style="font-size:13px; font-weight:700; color:#1565c0; margin-bottom:8px;">Процесс 1: Первичная индексация медиатеки</div>
+        <div class="placeholder" style="min-height:200px;">
+          <div class="ph-icon">📋</div>
+          <div>[ BPMN-диаграмма — Рисунок 1.1 ]</div>
+          <div class="text-sm text-muted">Запуск → Проверка разрешений → Фоновая служба →<br>Сканирование → Генерация эмбеддингов → Сохранение в БД</div>
+        </div>
+      </div>
+      <div class="col">
+        <div style="font-size:13px; font-weight:700; color:#1565c0; margin-bottom:8px;">Процесс 2: Поиск и просмотр изображений</div>
+        <div class="placeholder" style="min-height:200px;">
+          <div class="ph-icon">🔍</div>
+          <div>[ BPMN-диаграмма — Рисунок 1.2 ]</div>
+          <div class="text-sm text-muted">Ввод запроса → Векторное представление →<br>Поиск по индексу → Ранжирование → Отображение</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="highlight-box mt-12">
+      Два ключевых контура: <strong>фоновая индексация</strong> (без участия пользователя) и <strong>интерактивный поиск</strong> (< 50 мс). Полная локальность обработки данных.
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span class="motto">Вместе создаём будущее</span>
+    <span class="slide-num">9</span>
+  </div>
+</div>
+
+<!-- ════════════════════ SLIDE 10 — FEATURES ════════════════════ -->
+<div class="slide" data-n="10">
+  <div class="slide-header">
+    <div class="logo-area">
+      <div class="logo-placeholder">РТУ</div>
+      <span class="uni-name">МИРЭА — Российский технологический университет</span>
+    </div>
+    <span class="site">mirea.ru</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-title">Реализованный функционал приложения</div>
+
+    <div class="cards-grid cards-2x3" style="flex:1;">
+      <div class="num-card">
+        <div class="nc-num">01</div>
+        <div class="nc-title">Семантический поиск</div>
+        <div class="nc-text">
+          • Ввод запроса на естественном языке<br>
+          • Векторный поиск по HNSW-графу<br>
+          • Ранжирование по cosine similarity<br>
+          • Дебаунс запросов (300 мс)
+        </div>
+      </div>
+      <div class="num-card orange">
+        <div class="nc-num">02</div>
+        <div class="nc-title">Фоновая индексация</div>
+        <div class="nc-text">
+          • Автоматическое сканирование MediaStore<br>
+          • Пакетная генерация эмбеддингов<br>
+          • Контроль батареи и температуры<br>
+          • Возобновление после перезапуска
+        </div>
+      </div>
+      <div class="num-card green">
+        <div class="nc-num">03</div>
+        <div class="nc-title">Сегментный движок</div>
+        <div class="nc-text">
+          • mmap-чтение сегментов<br>
+          • Атомарная публикация<br>
+          • DeletionBitmap<br>
+          • Многосегментный merge-search
+        </div>
+      </div>
+      <div class="num-card purple">
+        <div class="nc-num">04</div>
+        <div class="nc-title">Adaptive ML</div>
+        <div class="nc-text">
+          • Авто-выбор профиля модели<br>
+          • Lite 384d / Standard 512d / Pro 512d<br>
+          • TFLite + GPU/NNAPI делегирование<br>
+          • CLIP ImageNet нормализация
+        </div>
+      </div>
+      <div class="num-card teal">
+        <div class="nc-num">05</div>
+        <div class="nc-title">Управление медиатекой</div>
+        <div class="nc-text">
+          • Timeline с группировкой по датам<br>
+          • Полноэкранный просмотр<br>
+          • Отображение метаданных<br>
+          • Функция «Поделиться»
+        </div>
+      </div>
+      <div class="num-card red">
+        <div class="nc-num">06</div>
+        <div class="nc-title">Настройки и исключения</div>
+        <div class="nc-text">
+          • Управление исключёнными папками<br>
+          • Ручная переиндексация<br>
+          • Очистка индекса<br>
+          • Статус и прогресс обработки
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span class="motto">Вместе создаём будущее</span>
+    <span class="slide-num">10</span>
+  </div>
+</div>
+
+<!-- ════════════════════ SLIDE 11 — UI SCREENSHOTS ════════════════════ -->
+<div class="slide" data-n="11">
+  <div class="slide-header">
+    <div class="logo-area">
+      <div class="logo-placeholder">РТУ</div>
+      <span class="uni-name">МИРЭА — Российский технологический университет</span>
+    </div>
+    <span class="site">mirea.ru</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-title">Пользовательский интерфейс</div>
+
+    <div class="phones-row" style="flex:1; align-items:center;">
+      <div class="phone-mock">
+        <div class="pm-notch"></div>
+        <div class="pm-screen">
+          <div class="pm-label">01 Onboarding</div>
+          <div class="pm-sub">Экран приветствия.<br>Иконка замка.<br>Кнопка «Предоставить доступ»</div>
+        </div>
+      </div>
+      <div class="phone-mock">
+        <div class="pm-notch"></div>
+        <div class="pm-screen">
+          <div class="pm-label">02 Search</div>
+          <div class="pm-sub">Поисковая строка.<br>Пустое состояние.<br>Пульсирующая иконка</div>
+        </div>
+      </div>
+      <div class="phone-mock">
+        <div class="pm-notch"></div>
+        <div class="pm-screen">
+          <div class="pm-label">03 Timeline</div>
+          <div class="pm-sub">Сетка фотографий.<br>Даты, видео-оверлеи.<br>Indexing-бейджи</div>
+        </div>
+      </div>
+      <div class="phone-mock">
+        <div class="pm-notch"></div>
+        <div class="pm-screen">
+          <div class="pm-label">04 Results</div>
+          <div class="pm-sub">Результаты поиска.<br>% совпадения.<br>Сетка миниатюр</div>
+        </div>
+      </div>
+      <div class="phone-mock">
+        <div class="pm-notch"></div>
+        <div class="pm-screen">
+          <div class="pm-label">05 Settings</div>
+          <div class="pm-sub">Статус индексации.<br>Профиль модели.<br>О приложении</div>
+        </div>
+      </div>
+      <div class="phone-mock">
+        <div class="pm-notch"></div>
+        <div class="pm-screen">
+          <div class="pm-label">06 Exclusions</div>
+          <div class="pm-sub">Исключённые папки.<br>Switch-тоглы.<br>Размеры директорий</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center text-sm text-muted mt-8">
+      [ Заменить мокапы реальными скриншотами из эмулятора ]&nbsp;&nbsp;·&nbsp;&nbsp;Material 3 · Тёмная тема · Compose Navigation
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span class="motto">Вместе создаём будущее</span>
+    <span class="slide-num">11</span>
+  </div>
+</div>
+
+<!-- ════════════════════ SLIDE 12 — TESTING ════════════════════ -->
+<div class="slide" data-n="12">
+  <div class="slide-header">
+    <div class="logo-area">
+      <div class="logo-placeholder">РТУ</div>
+      <span class="uni-name">МИРЭА — Российский технологический университет</span>
+    </div>
+    <span class="site">mirea.ru</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-title">Тестирование и контроль качества</div>
+
+    <div class="cols" style="flex:1;">
+      <div class="col">
+        <div class="subtitle">Метрики тестирования</div>
+        <table class="cmp">
+          <thead><tr><th>Показатель</th><th>Значение</th></tr></thead>
+          <tbody>
+            <tr><td>JVM unit-тесты</td><td><strong>68+</strong> тестов</td></tr>
+            <tr><td>Recall@10 (HNSW vs brute-force)</td><td><strong>≥ 0.95</strong></td></tr>
+            <tr><td>Поиск по 50K векторам</td><td><strong>< 50 мс</strong> (p95)</td></tr>
+            <tr><td>Время отклика UI</td><td><strong>< 1 сек</strong></td></tr>
+            <tr><td>assembleDebug</td><td><strong>PASS</strong></td></tr>
+          </tbody>
+        </table>
+
+        <div class="subtitle mt-12">Виды тестирования</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <span class="tag">Модульное (JUnit)</span>
+          <span class="tag">Robolectric</span>
+          <span class="tag">Функциональное</span>
+          <span class="tag">Benchmark</span>
+          <span class="tag">Офлайн</span>
+          <span class="tag">Concurrency</span>
+        </div>
+      </div>
+      <div class="col">
+        <div class="subtitle">Benchmark Suite</div>
+        <div class="placeholder" style="min-height:140px;">
+          <div class="ph-icon">📊</div>
+          <div>[ График: Search latency vs index size ]</div>
+          <div class="text-sm text-muted">1K → 10K → 50K → 100K векторов</div>
+        </div>
+
+        <div class="placeholder mt-12" style="min-height:140px;">
+          <div class="ph-icon">📈</div>
+          <div>[ График: Recall@K curve ]</div>
+          <div class="text-sm text-muted">K = 1, 5, 10, 20, 50</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span class="motto">Вместе создаём будущее</span>
+    <span class="slide-num">12</span>
+  </div>
+</div>
+
+<!-- ════════════════════ SLIDE 13 — DEPLOYMENT ════════════════════ -->
+<div class="slide" data-n="13">
+  <div class="slide-header">
+    <div class="logo-area">
+      <div class="logo-placeholder">РТУ</div>
+      <span class="uni-name">МИРЭА — Российский технологический университет</span>
+    </div>
+    <span class="site">mirea.ru</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-title">Схема развёртывания системы</div>
+
+    <div class="cols" style="flex:1;">
+      <div class="col" style="flex:1.3;">
+        <div class="placeholder" style="height:100%; min-height:340px;">
+          <div class="ph-icon">🖥</div>
+          <div>[ UML Deployment Diagram ]</div>
+          <div class="text-sm text-muted">Вставить диаграмму из рисунка 5.1 отчёта</div>
+        </div>
+      </div>
+      <div class="col" style="flex:0.8;">
+        <div style="font-size:13px; font-weight:700; color:#1a237e; margin-bottom:10px;">Единственный узел — устройство:</div>
+
+        <div class="num-card mb-8">
+          <div class="nc-title" style="margin-left:0;">📱 Клиентское приложение</div>
+          <div class="nc-text">Compose UI + Kotlin бизнес-логика + Navigation + Hilt DI</div>
+        </div>
+        <div class="num-card green mb-8">
+          <div class="nc-title" style="margin-left:0;">🧠 Local ML Engine</div>
+          <div class="nc-text">TFLite Interpreter + CLIP Model + NNAPI/GPU Delegate</div>
+        </div>
+        <div class="num-card orange mb-8">
+          <div class="nc-title" style="margin-left:0;">💾 Local Data Storage</div>
+          <div class="nc-text">SQLite (Room) + Vector Segments (mmap) + MediaStore API</div>
+        </div>
+
+        <div class="highlight-box mt-8" style="font-size:12px;">
+          🔒 <strong>0 серверных компонентов.</strong><br>100% обработка на устройстве.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span class="motto">Вместе создаём будущее</span>
+    <span class="slide-num">13</span>
+  </div>
+</div>
+
+<!-- ════════════════════ SLIDE 14 — ECONOMICS ════════════════════ -->
+<div class="slide" data-n="14">
+  <div class="slide-header">
+    <div class="logo-area">
+      <div class="logo-placeholder">РТУ</div>
+      <span class="uni-name">МИРЭА — Российский технологический университет</span>
+    </div>
+    <span class="site">mirea.ru</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-title">Организационно-экономическое обоснование</div>
+
+    <div class="cols" style="flex:1;">
+      <div class="col">
+        <table class="cmp">
+          <thead><tr><th>Статья расходов</th><th>Сумма (руб.)</th><th>Доля</th></tr></thead>
+          <tbody>
+            <tr><td>Основная заработная плата</td><td>583 124</td><td>38,3%</td></tr>
+            <tr><td>Дополнительная ЗП</td><td>116 625</td><td>7,7%</td></tr>
+            <tr><td>Страховые взносы</td><td>176 104</td><td>11,6%</td></tr>
+            <tr><td>Материалы</td><td>16 768</td><td>1,1%</td></tr>
+            <tr><td>Амортизация</td><td>40 000</td><td>2,6%</td></tr>
+            <tr><td>Эксплуатационные расходы</td><td>5 000</td><td>0,3%</td></tr>
+            <tr><td>Накладные расходы</td><td>583 124</td><td>38,3%</td></tr>
+            <tr style="font-weight:700; background:#e3f2fd;"><td><strong>ИТОГО</strong></td><td><strong>1 520 745</strong></td><td><strong>100%</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col">
+        <div class="placeholder" style="min-height:200px;">
+          <div class="ph-icon">🥧</div>
+          <div>[ Круговая диаграмма расходов ]</div>
+          <div class="text-sm text-muted">Вставить рисунок 2.1 из отчёта<br>по преддипломной практике</div>
+        </div>
+
+        <div class="stat-row mt-12">
+          <div class="stat-card">
+            <div class="stat-val" style="font-size:22px;">84</div>
+            <div class="stat-label">рабочих дня</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" style="font-size:22px;">5</div>
+            <div class="stat-label">этапов<br>разработки</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span class="motto">Вместе создаём будущее</span>
+    <span class="slide-num">14</span>
+  </div>
+</div>
+
+<!-- ════════════════════ SLIDE 15 — RESULTS ════════════════════ -->
+<div class="slide" data-n="15">
+  <div class="slide-header">
+    <div class="logo-area">
+      <div class="logo-placeholder">РТУ</div>
+      <span class="uni-name">МИРЭА — Российский технологический университет</span>
+    </div>
+    <span class="site">mirea.ru</span>
+  </div>
+  <div class="slide-body">
+    <div class="slide-title">Результаты работы</div>
+
+    <div class="cards-grid cards-2x5" style="margin-bottom:16px;">
+      <div class="metric-card">
+        <div class="mc-icon">📦</div>
+        <div class="mc-val">7</div>
+        <div class="mc-label">модулей<br>в системе</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-icon">🖥</div>
+        <div class="mc-val">6</div>
+        <div class="mc-label">экранов<br>приложения</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-icon">🧪</div>
+        <div class="mc-val">68+</div>
+        <div class="mc-label">JVM<br>unit-тестов</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-icon">🗂</div>
+        <div class="mc-val">6</div>
+        <div class="mc-label">сущностей<br>в Room БД</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-icon">⚡</div>
+        <div class="mc-val">< 50 мс</div>
+        <div class="mc-label">поиск по<br>50K векторам</div>
+      </div>
+    </div>
+
+    <div class="cards-grid cards-2x5" style="margin-bottom:20px;">
+      <div class="metric-card">
+        <div class="mc-icon">🎯</div>
+        <div class="mc-val">≥ 0.95</div>
+        <div class="mc-label">recall@10<br>HNSW</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-icon">🔒</div>
+        <div class="mc-val">0</div>
+        <div class="mc-label">серверных<br>компонентов</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-icon">🛡</div>
+        <div class="mc-val">100%</div>
+        <div class="mc-label">конфиденц.<br>данных</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-icon">🤖</div>
+        <div class="mc-val">3</div>
+        <div class="mc-label">ML-профиля<br>Lite/Std/Pro</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-icon">💰</div>
+        <div class="mc-val">1.52M ₽</div>
+        <div class="mc-label">себестоимость<br>проекта</div>
+      </div>
+    </div>
+
+    <div class="conclusion-box">
+      <p>Все поставленные задачи выполнены в полном объёме. Разработано полностью автономное решение для семантического поиска по медиатеке с recall ≥ 0.95, масштабируемое до 100K+ фотографий.</p>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span class="motto">Вместе создаём будущее</span>
+    <span class="slide-num">15</span>
+  </div>
+</div>
+
+<!-- ════════════════════ SLIDE 16 — THANK YOU ════════════════════ -->
+<div class="slide" data-n="16">
+  <div class="slide-header">
+    <div class="logo-area">
+      <div class="logo-placeholder">РТУ</div>
+      <span class="uni-name">МИРЭА — Российский технологический университет</span>
+    </div>
+    <span class="site">mirea.ru</span>
+  </div>
+  <div class="slide-body" style="align-items:center; justify-content:center; text-align:center;">
+    <div style="max-width:700px;">
+      <div style="font-size:40px; margin-bottom:16px;">🎓</div>
+      <div style="font-size:32px; font-weight:800; color:#1a237e; margin-bottom:12px;">Спасибо за внимание!</div>
+      <div style="font-size:16px; color:#555; margin-bottom:30px;">Готов ответить на вопросы</div>
+
+      <div style="display:flex; gap:20px; justify-content:center; flex-wrap:wrap;">
+        <div style="background:#f5f7fa; border-radius:12px; padding:14px 24px; text-align:left;">
+          <div style="font-size:12px; color:#999; margin-bottom:4px;">Перспективы развития:</div>
+          <div style="font-size:13px; color:#333; line-height:1.6;">
+            • Интеграция реальной CLIP-модели<br>
+            • Публикация в Google Play<br>
+            • Поддержка iOS (Kotlin Multiplatform)<br>
+            • Автогенерация альбомов через VLM
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <span class="motto">Вместе создаём будущее</span>
+    <span class="slide-num">16</span>
+  </div>
+</div>
+
+</div><!-- /deck -->
+
+<div class="nav-hint">← → стрелки для навигации · нажмите F для полноэкранного режима</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+let cur = 0;
+
+function go(n) {
+  if (n < 0 || n >= slides.length) return;
+  slides[cur].classList.remove('active');
+  cur = n;
+  slides[cur].classList.add('active');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); go(cur + 1); }
+  if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(cur - 1); }
+  if (e.key === 'Home') go(0);
+  if (e.key === 'End') go(slides.length - 1);
+  if (e.key === 'f' || e.key === 'F') {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  }
+});
+
+document.addEventListener('click', e => {
+  const x = e.clientX / window.innerWidth;
+  if (x > 0.5) go(cur + 1); else go(cur - 1);
+});
+</script>
+</body>
+</html>

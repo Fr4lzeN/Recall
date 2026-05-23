@@ -1,0 +1,8 @@
+torch>=2.0
+torchvision>=0.15
+mobileclip
+onnx>=1.14
+onnx2tf>=2.0
+tensorflow>=2.15
+numpy
+Pillow

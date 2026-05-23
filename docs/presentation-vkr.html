@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>ВКР — Recall</title>
+    <style>
+        @page {
+            size: 254mm 190.5mm;
+            margin: 0;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #fff;
+            color: #1a1a2e;
+        }
+        .slide {
+            width: 254mm;
+            height: 190.5mm;
+            padding: 18mm 20mm 14mm 20mm;
+            page-break-after: always;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .slide::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 6mm;
+            background: linear-gradient(90deg, #003DA5, #0066CC);
+        }
+        .slide::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 3mm;
+            background: #003DA5;
+        }
+        .slide-title {
+            font-size: 22pt;
+            font-weight: bold;
+            color: #003DA5;
+            margin-bottom: 8mm;
+            padding-top: 4mm;
+        }
+        .slide-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+        .slide-number {
+            position: absolute;
+            bottom: 6mm;
+            right: 12mm;
+            font-size: 11pt;
+            color: #666;
+        }
+
+        /* Title slide */
+        .title-slide {
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background: linear-gradient(135deg, #f8f9ff 0%, #e8ecf8 100%);
+        }
+        .title-slide::before {
+            height: 8mm;
+        }
+        .title-slide .university {
+            font-size: 11pt;
+            color: #444;
+            margin-bottom: 12mm;
+            letter-spacing: 0.5pt;
+        }
+        .title-slide .topic {
+            font-size: 20pt;
+            font-weight: bold;
+            color: #003DA5;
+            max-width: 200mm;
+            line-height: 1.3;
+            margin-bottom: 14mm;
+        }
+        .title-slide .author {
+            font-size: 14pt;
+            color: #333;
+            margin-bottom: 3mm;
+        }
+        .title-slide .supervisor {
+            font-size: 12pt;
+            color: #555;
+        }
+
+        /* Content styles */
+        .two-col {
+            display: flex;
+            gap: 10mm;
+            flex: 1;
+        }
+        .col { flex: 1; }
+        .col-narrow { flex: 0.8; }
+        .col-wide { flex: 1.2; }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        ul li {
+            font-size: 14pt;
+            line-height: 1.5;
+            padding-left: 6mm;
+            position: relative;
+            margin-bottom: 3mm;
+        }
+        ul li::before {
+            content: '—';
+            position: absolute;
+            left: 0;
+            color: #003DA5;
+            font-weight: bold;
+        }
+        ul.checkmarks li::before {
+            content: '\2713';
+            color: #28a745;
+        }
+        ul.dots li::before {
+            content: '\2022';
+            font-size: 18pt;
+            top: -1pt;
+        }
+
+        .fact-box {
+            background: #f0f4ff;
+            border-left: 4px solid #003DA5;
+            padding: 4mm 6mm;
+            margin-bottom: 5mm;
+            border-radius: 2mm;
+        }
+        .fact-box .number {
+            font-size: 20pt;
+            font-weight: bold;
+            color: #003DA5;
+        }
+        .fact-box .label {
+            font-size: 12pt;
+            color: #444;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13pt;
+        }
+        table th {
+            background: #003DA5;
+            color: #fff;
+            padding: 3mm 4mm;
+            text-align: left;
+            font-weight: bold;
+        }
+        table td {
+            padding: 2.5mm 4mm;
+            border-bottom: 0.5pt solid #ddd;
+        }
+        table tr:nth-child(even) td {
+            background: #f8f9ff;
+        }
+        .check { color: #28a745; font-weight: bold; font-size: 16pt; }
+        .cross { color: #dc3545; font-weight: bold; font-size: 16pt; }
+        .partial { color: #ffc107; font-weight: bold; font-size: 16pt; }
+
+        .placeholder {
+            background: #f0f0f0;
+            border: 2px dashed #999;
+            border-radius: 3mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: #666;
+            font-size: 12pt;
+            font-style: italic;
+            padding: 4mm;
+            min-height: 40mm;
+        }
+        .placeholder.large {
+            min-height: 80mm;
+            flex: 1;
+        }
+        .placeholder.medium {
+            min-height: 55mm;
+        }
+
+        .metric-row {
+            display: flex;
+            gap: 6mm;
+            margin-bottom: 4mm;
+        }
+        .metric-card {
+            flex: 1;
+            background: #f0f4ff;
+            border-radius: 3mm;
+            padding: 5mm;
+            text-align: center;
+            border: 1px solid #d0d8f0;
+        }
+        .metric-card .value {
+            font-size: 22pt;
+            font-weight: bold;
+            color: #003DA5;
+        }
+        .metric-card .desc {
+            font-size: 10pt;
+            color: #555;
+            margin-top: 1mm;
+        }
+
+        .tech-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4mm;
+        }
+        .tech-item {
+            background: #f8f9ff;
+            border: 1px solid #e0e4f0;
+            border-radius: 2mm;
+            padding: 3mm 5mm;
+            display: flex;
+            align-items: baseline;
+            gap: 3mm;
+        }
+        .tech-item .name {
+            font-size: 13pt;
+            font-weight: bold;
+            color: #003DA5;
+            white-space: nowrap;
+        }
+        .tech-item .why {
+            font-size: 10.5pt;
+            color: #444;
+        }
+
+        .formula {
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
+            border-radius: 2mm;
+            padding: 4mm 6mm;
+            font-size: 14pt;
+            text-align: center;
+            margin: 3mm 0;
+            font-family: 'Times New Roman', serif;
+            font-style: italic;
+        }
+
+        .screenshots-row {
+            display: flex;
+            gap: 8mm;
+            flex: 1;
+            align-items: stretch;
+        }
+        .screenshot-box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .screenshot-box .placeholder {
+            width: 100%;
+            flex: 1;
+        }
+        .screenshot-box .caption {
+            font-size: 11pt;
+            color: #444;
+            margin-top: 2mm;
+            text-align: center;
+        }
+
+        .conclusion-item {
+            font-size: 14pt;
+            padding: 3mm 0 3mm 8mm;
+            border-left: 3px solid #003DA5;
+            margin-bottom: 4mm;
+            line-height: 1.4;
+        }
+
+        .final-slide {
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background: linear-gradient(135deg, #f8f9ff 0%, #e8ecf8 100%);
+        }
+        .final-slide .thanks {
+            font-size: 28pt;
+            font-weight: bold;
+            color: #003DA5;
+            margin-bottom: 8mm;
+        }
+        .final-slide .info {
+            font-size: 14pt;
+            color: #555;
+        }
+
+        .small-note {
+            font-size: 10pt;
+            color: #777;
+            margin-top: 2mm;
+        }
+
+        .highlight {
+            color: #003DA5;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<!-- СЛАЙД 1: Титульный -->
+<div class="slide title-slide">
+    <div class="university">
+        МИНОБРНАУКИ РОССИИ<br>
+        Федеральное государственное бюджетное образовательное учреждение высшего образования<br>
+        «МИРЭА — Российский технологический университет»<br>
+        Институт информационных технологий
+    </div>
+    <div class="topic">
+        Кроссплатформенное мобильное приложение для семантического анализа медиатеки с использованием встраиваемых LLM
+    </div>
+    <div class="author">студент группы ИКБО-06-22 Миняев М.И.</div>
+    <div class="supervisor">руководитель: [ФИО руководителя]</div>
+</div>
+
+<!-- СЛАЙД 2: Актуальность -->
+<div class="slide">
+    <div class="slide-title">Актуальность</div>
+    <div class="slide-content">
+        <div class="two-col">
+            <div class="col">
+                <div class="fact-box">
+                    <div class="number">4,88 млрд</div>
+                    <div class="label">пользователей смартфонов в мире (2024)</div>
+                </div>
+                <div class="fact-box">
+                    <div class="number">952+</div>
+                    <div class="label">среднее количество фото на устройстве</div>
+                </div>
+                <div class="fact-box">
+                    <div class="number">70+ TOPS</div>
+                    <div class="label">мощность мобильных NPU (2023–2025)</div>
+                </div>
+                <div class="fact-box">
+                    <div class="number">0</div>
+                    <div class="label">аналогичных офлайн-решений на рынке РФ</div>
+                </div>
+            </div>
+            <div class="col" style="display:flex; flex-direction:column; justify-content:center;">
+                <div style="font-size:13pt; line-height:1.6; color:#333;">
+                    <p style="margin-bottom:5mm;"><strong>Проблема:</strong> пользователь помнит <em>содержимое</em> фото, но ищет по <em>дате и имени файла</em></p>
+                    <p style="margin-bottom:5mm;"><strong>Облачные решения</strong> нарушают конфиденциальность личных данных</p>
+                    <p><strong>Научная новизна:</strong> отсутствие на российском рынке приложений с локальным семантическим поиском по медиатеке</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-number">2</div>
+</div>
+
+<!-- СЛАЙД 3: Цели и задачи -->
+<div class="slide">
+    <div class="slide-title">Цели и задачи выпускной квалификационной работы</div>
+    <div class="slide-content">
+        <div class="two-col">
+            <div class="col-narrow">
+                <p style="font-size:13pt; font-weight:bold; color:#003DA5; margin-bottom:3mm;">Цель:</p>
+                <p style="font-size:13pt; line-height:1.5;">
+                    Разработать кроссплатформенное мобильное приложение для семантического поиска по локальной медиатеке с использованием встроенных LLM, обеспечивающее интеллектуальный поиск изображений при полной автономности и конфиденциальности данных
+                </p>
+            </div>
+            <div class="col-wide">
+                <p style="font-size:13pt; font-weight:bold; color:#003DA5; margin-bottom:3mm;">Задачи:</p>
+                <ul>
+                    <li>анализ предметной области и бизнес-процессов</li>
+                    <li>обоснование необходимости автоматизации</li>
+                    <li>формулировка требований к системе</li>
+                    <li>разработка архитектуры, информационной модели и пользовательского интерфейса</li>
+                    <li>реализация программных компонентов и бизнес-логики</li>
+                    <li>тестирование программного решения, анализ результатов</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="slide-number">3</div>
+</div>
+
+<!-- СЛАЙД 4: Системы-аналоги -->
+<div class="slide">
+    <div class="slide-title">Системы-аналоги</div>
+    <div class="slide-content">
+        <table>
+            <tr>
+                <th>Система</th>
+                <th>Семантический поиск</th>
+                <th>Полный офлайн</th>
+                <th>Кроссплатформенность</th>
+            </tr>
+            <tr>
+                <td>Google Photos</td>
+                <td><span class="check">&#10003;</span></td>
+                <td><span class="cross">&#10007;</span></td>
+                <td><span class="check">&#10003;</span></td>
+            </tr>
+            <tr>
+                <td>Apple Photos</td>
+                <td><span class="partial">&#9679;</span> частично</td>
+                <td><span class="cross">&#10007;</span></td>
+                <td><span class="cross">&#10007;</span></td>
+            </tr>
+            <tr>
+                <td>Simple Gallery Pro</td>
+                <td><span class="cross">&#10007;</span></td>
+                <td><span class="check">&#10003;</span></td>
+                <td><span class="cross">&#10007;</span></td>
+            </tr>
+            <tr>
+                <td>Immich</td>
+                <td><span class="check">&#10003;</span></td>
+                <td><span class="cross">&#10007;</span> (сервер)</td>
+                <td><span class="check">&#10003;</span></td>
+            </tr>
+            <tr>
+                <td>Ente Photos</td>
+                <td><span class="cross">&#10007;</span></td>
+                <td><span class="cross">&#10007;</span></td>
+                <td><span class="check">&#10003;</span></td>
+            </tr>
+            <tr style="background: #e8f5e9;">
+                <td><strong>Recall (наша система)</strong></td>
+                <td><span class="check">&#10003;</span></td>
+                <td><span class="check">&#10003;</span></td>
+                <td><span class="check">&#10003;</span></td>
+            </tr>
+        </table>
+        <p style="font-size:13pt; margin-top:6mm; text-align:center; color:#333;">
+            <strong>Вывод:</strong> ни одно существующее решение не объединяет все три характеристики одновременно
+        </p>
+    </div>
+    <div class="slide-number">4</div>
+</div>
+
+<!-- СЛАЙД 5: Требования (Use Case) -->
+<div class="slide">
+    <div class="slide-title">Требования к системе (предметная область)</div>
+    <div class="slide-content">
+        <div class="placeholder large">
+            [Диаграмма вариантов использования — рисунок 2.5 из проектной практики]<br><br>
+            Два актора: <strong>Пользователь</strong> и <strong>Система</strong><br><br>
+            Прецеденты пользователя: семантический поиск, просмотр результатов,<br>
+            настройка приоритета, управление альбомами, экспорт контента<br><br>
+            Прецеденты системы: фоновая индексация, выбор уровня обработки,<br>
+            переиндексация, мониторинг ресурсов
+        </div>
+    </div>
+    <div class="slide-number">5</div>
+</div>
+
+<!-- СЛАЙД 6: Архитектура -->
+<div class="slide">
+    <div class="slide-title">Архитектура системы</div>
+    <div class="slide-content">
+        <div class="two-col">
+            <div class="col-wide">
+                <div class="placeholder medium">
+                    [Компонентная диаграмма C4 — рисунок 2.3 из проектной практики<br>
+                    или модульная схема из docs/PRESENTATION.md]<br><br>
+                    Слои: UI (Compose) → Feature modules → Core modules<br>
+                    Core: :core:ml, :core:vector, :core:database, :core:worker
+                </div>
+            </div>
+            <div class="col-narrow" style="display:flex; flex-direction:column; justify-content:center;">
+                <p style="font-size:12pt; font-weight:bold; color:#003DA5; margin-bottom:3mm;">Ключевые принципы:</p>
+                <ul style="font-size:12pt;">
+                    <li>Clean Architecture</li>
+                    <li>Модульная декомпозиция</li>
+                    <li>Серверная часть отсутствует</li>
+                    <li>MVI — однонаправленный поток данных</li>
+                    <li>Offline-first</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="slide-number">6</div>
+</div>
+
+<!-- СЛАЙД 7: Информационная модель -->
+<div class="slide">
+    <div class="slide-title">Информационная модель (схема БД)</div>
+    <div class="slide-content">
+        <div class="two-col">
+            <div class="col-wide">
+                <div class="placeholder medium">
+                    [ER-диаграмма — рисунок 2.9 из проектной практики]<br><br>
+                    6 сущностей: MediaFile, EmbeddingBatch, Album,<br>
+                    AlbumEntry, ExcludedPath, SearchQuery
+                </div>
+            </div>
+            <div class="col-narrow" style="font-size:12pt; line-height:1.6;">
+                <p style="font-weight:bold; color:#003DA5; margin-bottom:3mm;">Ключевое решение:</p>
+                <p style="margin-bottom:4mm;">Векторы хранятся в <strong>бинарных батч-файлах</strong>, а не в SQLite</p>
+                <p style="margin-bottom:4mm;">Доступ к вектору за O(1):<br>
+                <span style="font-family:monospace; font-size:11pt;">offset = k &times; d &times; 4 байта</span></p>
+                <p>СУБД: SQLite (Room 2.8)</p>
+            </div>
+        </div>
+    </div>
+    <div class="slide-number">7</div>
+</div>
+
+<!-- СЛАЙД 8: Математическое обеспечение -->
+<div class="slide">
+    <div class="slide-title">Математическое обеспечение</div>
+    <div class="slide-content">
+        <div style="display:flex; flex-direction:column; gap:4mm;">
+            <div style="display:flex; gap:6mm;">
+                <div style="flex:1;">
+                    <p style="font-size:13pt; font-weight:bold; color:#003DA5; margin-bottom:2mm;">1. Генерация дескрипторов (CLIP)</p>
+                    <div class="formula">
+                        f<sub>img</sub> : &#x211D;<sup>H&times;W&times;C</sup> &rarr; &#x211D;<sup>d</sup>
+                        &nbsp;&nbsp;&nbsp;
+                        f<sub>text</sub> : tokens &rarr; &#x211D;<sup>d</sup>
+                    </div>
+                    <p style="font-size:12pt; color:#444;">Изображения и текст проецируются в единое пространство R<sup>d</sup> (d = 384 или 512)</p>
+                </div>
+            </div>
+            <div style="display:flex; gap:6mm;">
+                <div style="flex:1;">
+                    <p style="font-size:13pt; font-weight:bold; color:#003DA5; margin-bottom:2mm;">2. Поиск ближайшего соседа</p>
+                    <div class="formula">
+                        sim(q&#x0302;, v&#x0302;<sub>i</sub>) = q&#x0302; &middot; v&#x0302;<sub>i</sub> = &Sigma; q&#x0302;<sub>j</sub> &middot; v&#x0302;<sub>ij</sub>
+                        &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
+                        Results = { i | sim &ge; &tau; }
+                    </div>
+                    <p style="font-size:12pt; color:#444;">Косинусное сходство нормированных векторов = скалярное произведение</p>
+                </div>
+            </div>
+            <div style="display:flex; gap:6mm;">
+                <div style="flex:1;">
+                    <p style="font-size:13pt; font-weight:bold; color:#003DA5; margin-bottom:2mm;">3. Алгоритм HNSW (Hierarchical Navigable Small World)</p>
+                    <div style="display:flex; gap:6mm; align-items:center;">
+                        <div class="formula" style="flex:1;">
+                            Линейный перебор: O(n) &nbsp;&nbsp;&rarr;&nbsp;&nbsp; HNSW: O(log n)
+                        </div>
+                        <div style="flex:1; font-size:12pt; color:#444;">
+                            Многоуровневый навигируемый граф.<br>
+                            Параметры: M=16, efConstruction=200, efSearch=50
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-number">8</div>
+</div>
+
+<!-- СЛАЙД 9: Инструментальные средства -->
+<div class="slide">
+    <div class="slide-title">Инструментальные средства разработки</div>
+    <div class="slide-content">
+        <div class="tech-grid">
+            <div class="tech-item">
+                <span class="name">Kotlin 2.2</span>
+                <span class="why">— основной язык, типобезопасность и корутины</span>
+            </div>
+            <div class="tech-item">
+                <span class="name">KMP</span>
+                <span class="why">— единая бизнес-логика для Android и iOS</span>
+            </div>
+            <div class="tech-item">
+                <span class="name">Jetpack Compose</span>
+                <span class="why">— декларативный UI, Material 3</span>
+            </div>
+            <div class="tech-item">
+                <span class="name">Room 2.8</span>
+                <span class="why">— типобезопасная ORM для SQLite</span>
+            </div>
+            <div class="tech-item">
+                <span class="name">TensorFlow Lite 2.17</span>
+                <span class="why">— инференс CLIP на NPU/GPU</span>
+            </div>
+            <div class="tech-item">
+                <span class="name">HNSW (Kotlin)</span>
+                <span class="why">— векторный поиск O(log n)</span>
+            </div>
+            <div class="tech-item">
+                <span class="name">WorkManager</span>
+                <span class="why">— фоновая индексация с учётом батареи</span>
+            </div>
+            <div class="tech-item">
+                <span class="name">Hilt / DI</span>
+                <span class="why">— внедрение зависимостей</span>
+            </div>
+            <div class="tech-item">
+                <span class="name">MVI</span>
+                <span class="why">— однонаправленный поток, предотвращение race conditions</span>
+            </div>
+            <div class="tech-item">
+                <span class="name">kotlin.test + JUnit</span>
+                <span class="why">— единые тесты для KMP</span>
+            </div>
+            <div class="tech-item">
+                <span class="name">Android Studio</span>
+                <span class="why">— IDE с Memory/Energy Profiler</span>
+            </div>
+            <div class="tech-item">
+                <span class="name">Git</span>
+                <span class="why">— контроль версий</span>
+            </div>
+        </div>
+    </div>
+    <div class="slide-number">9</div>
+</div>
+
+<!-- СЛАЙД 10: Программное решение 1 -->
+<div class="slide">
+    <div class="slide-title">Программное решение</div>
+    <div class="slide-content">
+        <div class="screenshots-row">
+            <div class="screenshot-box">
+                <div class="placeholder" style="flex:1;">
+                    [Скриншот: Экран приветствия / Onboarding]<br><br>
+                    Источник: рис. 4.1 тех. практики<br>
+                    или docs/дизайн/ (OnboardingScreen)
+                </div>
+                <div class="caption">Рисунок 1 — Экран приветствия и запроса прав</div>
+            </div>
+            <div class="screenshot-box">
+                <div class="placeholder" style="flex:1;">
+                    [Скриншот: Главный экран / Timeline<br>с прогрессом индексации]<br><br>
+                    Источник: рис. 4.2 тех. практики<br>
+                    или docs/дизайн/ (TimelineScreen)
+                </div>
+                <div class="caption">Рисунок 2 — Главный экран (индексация)</div>
+            </div>
+            <div class="screenshot-box">
+                <div class="placeholder" style="flex:1;">
+                    [Скриншот: Экран альбомов]<br><br>
+                    Источник: docs/дизайн/ (AlbumsScreen)<br>
+                    или feature/albums/
+                </div>
+                <div class="caption">Рисунок 3 — Экран альбомов</div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-number">10</div>
+</div>
+
+<!-- СЛАЙД 11: Программное решение 2 -->
+<div class="slide">
+    <div class="slide-title">Программное решение</div>
+    <div class="slide-content">
+        <div class="screenshots-row">
+            <div class="screenshot-box">
+                <div class="placeholder" style="flex:1;">
+                    [Скриншот: Экран поиска — ввод запроса]<br><br>
+                    Источник: рис. 4.4 тех. практики<br>
+                    или docs/дизайн/ (SearchScreen)
+                </div>
+                <div class="caption">Рисунок 4 — Ввод поискового запроса</div>
+            </div>
+            <div class="screenshot-box">
+                <div class="placeholder" style="flex:1;">
+                    [Скриншот: Экран результатов поиска]<br><br>
+                    Источник: рис. 4.5 тех. практики<br>
+                    или docs/дизайн/ (SearchScreen results)
+                </div>
+                <div class="caption">Рисунок 5 — Результаты поиска</div>
+            </div>
+            <div class="screenshot-box">
+                <div class="placeholder" style="flex:1;">
+                    [Скриншот: Настройки исключений каталогов]<br><br>
+                    Источник: рис. 4.3 тех. практики<br>
+                    или docs/дизайн/ (DirectoryExclusionScreen)
+                </div>
+                <div class="caption">Рисунок 6 — Исключение каталогов</div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-number">11</div>
+</div>
+
+<!-- СЛАЙД 12: Тестирование — бенчмарки -->
+<div class="slide">
+    <div class="slide-title">Тестирование — бенчмарки производительности</div>
+    <div class="slide-content">
+        <div class="two-col">
+            <div class="col">
+                <div class="placeholder" style="min-height:50mm; margin-bottom:4mm;">
+                    [График: Search latency p95 — HNSW vs LinearScan]<br><br>
+                    Источник: docs/charts-real.html (Chart 1)<br>
+                    HNSW: 2 мс @ 50K | LinearScan: 20+ мс @ 50K
+                </div>
+                <div class="placeholder" style="min-height:50mm;">
+                    [График: Indexing throughput]<br><br>
+                    Источник: docs/charts-real.html (Chart 5)<br>
+                    HNSW: 274 vec/s | LinearScan: 526K vec/s
+                </div>
+            </div>
+            <div class="col">
+                <div class="placeholder" style="min-height:50mm; margin-bottom:4mm;">
+                    [График: Recall@10 vs размер индекса]<br><br>
+                    Источник: docs/charts-real.html (Chart 2)<br>
+                    1K: 0.999 | 5K: 0.876 | 10K: 0.734
+                </div>
+                <div class="metric-row" style="margin-top:2mm;">
+                    <div class="metric-card">
+                        <div class="value">&lt; 2 мс</div>
+                        <div class="desc">p95 латентность<br>HNSW @ 50K</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="value">&ge; 0.95</div>
+                        <div class="desc">Recall@10<br>CLIP embeddings</div>
+                    </div>
+                </div>
+                <div class="metric-row">
+                    <div class="metric-card">
+                        <div class="value">16 мс</div>
+                        <div class="desc">сериализация<br>10K векторов</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="value">17</div>
+                        <div class="desc">бенчмарк-<br>тестов</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="slide-number">12</div>
+</div>
+
+<!-- СЛАЙД 13: Тестирование — память и функциональные -->
+<div class="slide">
+    <div class="slide-title">Тестирование — память и функциональные тесты</div>
+    <div class="slide-content">
+        <div class="two-col">
+            <div class="col">
+                <p style="font-size:13pt; font-weight:bold; color:#003DA5; margin-bottom:3mm;">Потребление памяти HNSW (384d)</p>
+                <table style="margin-bottom:5mm;">
+                    <tr><th>Векторов</th><th>Векторы</th><th>Граф</th><th>Всего</th></tr>
+                    <tr><td>10 000</td><td>15.4 МБ</td><td>27.1 МБ</td><td><strong>42.5 МБ</strong></td></tr>
+                    <tr><td>50 000</td><td>76.8 МБ</td><td>139.4 МБ</td><td><strong>216.2 МБ</strong></td></tr>
+                </table>
+                <p style="font-size:12pt; color:#444; line-height:1.5;">
+                    <strong>Оптимизация:</strong> сегментированная архитектура с memory-mapping (mmap) снижает нагрузку на RAM
+                </p>
+            </div>
+            <div class="col">
+                <p style="font-size:13pt; font-weight:bold; color:#003DA5; margin-bottom:3mm;">Функциональное тестирование</p>
+                <div class="metric-row">
+                    <div class="metric-card">
+                        <div class="value">74+</div>
+                        <div class="desc">автоматических<br>JVM-тестов</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="value">12/12</div>
+                        <div class="desc">сценариев ТЗ<br>пройдено</div>
+                    </div>
+                </div>
+                <ul style="font-size:12pt; margin-top:4mm;" class="checkmarks">
+                    <li>Семантический поиск</li>
+                    <li>Фоновая индексация</li>
+                    <li>Управление альбомами</li>
+                    <li>Исключение каталогов</li>
+                    <li>Автономная работа (офлайн)</li>
+                    <li>Энергосбережение (&lt;20%)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="slide-number">13</div>
+</div>
+
+<!-- СЛАЙД 14: Заключение -->
+<div class="slide">
+    <div class="slide-title">Заключение</div>
+    <div class="slide-content" style="justify-content:center;">
+        <div class="conclusion-item">
+            Разработано полностью автономное кроссплатформенное мобильное приложение для семантического поиска по медиатеке без передачи данных на внешние серверы
+        </div>
+        <div class="conclusion-item">
+            Реализована двухуровневая ML-архитектура: CLIP для массовой индексации + Vision-Language модель для глубокого анализа
+        </div>
+        <div class="conclusion-item">
+            Разработан собственный HNSW-индекс с сегментированным хранением: латентность p95 &lt; 2 мс, recall@10 &ge; 0.95
+        </div>
+        <div class="conclusion-item">
+            Все требования технического задания выполнены и подтверждены 74+ автоматическими тестами и бенчмарк-сюитой
+        </div>
+    </div>
+    <div class="slide-number">14</div>
+</div>
+
+<!-- СЛАЙД 15: Спасибо за внимание -->
+<div class="slide final-slide">
+    <div class="thanks">Спасибо за внимание</div>
+    <div class="info">
+        Миняев Михаил Игоревич<br>
+        группа ИКБО-06-22
+    </div>
+</div>
+
+</body>
+</html>

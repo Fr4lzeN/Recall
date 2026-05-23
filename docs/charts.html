@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Графики для презентации — Recall</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:#f0f2f5; padding:40px; color:#222; }
+  h1 { font-size:20px; color:#1a237e; margin-bottom:32px; }
+  .chart-section {
+    background:#fff; border-radius:16px; padding:32px; margin-bottom:32px;
+    box-shadow:0 2px 12px rgba(0,0,0,.08);
+  }
+  .chart-section h2 { font-size:16px; color:#1a237e; margin-bottom:6px; }
+  .chart-section .sub { font-size:12px; color:#999; margin-bottom:20px; }
+  .chart-section .hint { font-size:11px; color:#aaa; margin-top:12px; font-style:italic; }
+
+  .side-by-side { display:flex; gap:32px; }
+  .side-by-side > div { flex:1; }
+</style>
+</head>
+<body>
+
+<h1>Графики для вставки в презентацию (правый клик → «Сохранить как изображение» или скриншот)</h1>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- CHART 1: CLIP Vector Space -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="chart-section">
+  <h2>1. Схема единого векторного пространства CLIP</h2>
+  <div class="sub">Слайд 7 — Математическое обеспечение</div>
+
+  <svg viewBox="0 0 720 400" style="width:720px;height:400px;display:block;margin:0 auto;">
+    <defs>
+      <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#90a4ae"/>
+      </marker>
+      <marker id="arr-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" fill="#1565c0"/>
+      </marker>
+      <radialGradient id="glow-img" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#42a5f5" stop-opacity=".15"/>
+        <stop offset="100%" stop-color="#42a5f5" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="glow-txt" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#ef5350" stop-opacity=".15"/>
+        <stop offset="100%" stop-color="#ef5350" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+
+    <!-- background grid -->
+    <rect x="80" y="30" width="560" height="340" rx="8" fill="#fafbfc" stroke="#e8eaed" stroke-width="1"/>
+    <g stroke="#f0f0f0" stroke-width="1">
+      <line x1="220" y1="30" x2="220" y2="370"/>
+      <line x1="360" y1="30" x2="360" y2="370"/>
+      <line x1="500" y1="30" x2="500" y2="370"/>
+      <line x1="80" y1="120" x2="640" y2="120"/>
+      <line x1="80" y1="200" x2="640" y2="200"/>
+      <line x1="80" y1="280" x2="640" y2="280"/>
+    </g>
+
+    <!-- axes -->
+    <line x1="80" y1="370" x2="640" y2="370" stroke="#bdbdbd" stroke-width="1.5" marker-end="url(#arr)"/>
+    <line x1="80" y1="370" x2="80" y2="30" stroke="#bdbdbd" stroke-width="1.5" marker-end="url(#arr)"/>
+    <text x="660" y="375" font-size="11" fill="#999">dim 1</text>
+    <text x="68" y="22" font-size="11" fill="#999">dim 2</text>
+
+    <!-- cluster glow -->
+    <circle cx="240" cy="140" r="90" fill="url(#glow-img)"/>
+    <circle cx="510" cy="280" r="80" fill="url(#glow-img)"/>
+    <circle cx="480" cy="110" r="70" fill="url(#glow-txt)"/>
+
+    <!-- IMAGE embeddings — cluster "animals" -->
+    <circle cx="210" cy="120" r="8" fill="#42a5f5" opacity=".85"/>
+    <circle cx="240" cy="105" r="8" fill="#42a5f5" opacity=".85"/>
+    <circle cx="255" cy="140" r="8" fill="#42a5f5" opacity=".85"/>
+    <circle cx="220" cy="155" r="8" fill="#42a5f5" opacity=".85"/>
+    <circle cx="270" cy="125" r="8" fill="#42a5f5" opacity=".85"/>
+    <circle cx="235" cy="170" r="8" fill="#42a5f5" opacity=".65"/>
+
+    <!-- IMAGE embeddings — cluster "landscapes" -->
+    <circle cx="490" cy="270" r="8" fill="#42a5f5" opacity=".85"/>
+    <circle cx="520" cy="255" r="8" fill="#42a5f5" opacity=".85"/>
+    <circle cx="505" cy="290" r="8" fill="#42a5f5" opacity=".85"/>
+    <circle cx="535" cy="280" r="8" fill="#42a5f5" opacity=".85"/>
+    <circle cx="480" cy="300" r="8" fill="#42a5f5" opacity=".65"/>
+
+    <!-- IMAGE embeddings — cluster "documents" -->
+    <circle cx="160" cy="290" r="8" fill="#42a5f5" opacity=".85"/>
+    <circle cx="180" cy="310" r="8" fill="#42a5f5" opacity=".85"/>
+    <circle cx="150" cy="320" r="8" fill="#42a5f5" opacity=".65"/>
+    <circle cx="190" cy="280" r="8" fill="#42a5f5" opacity=".85"/>
+
+    <!-- scattered images -->
+    <circle cx="400" cy="190" r="7" fill="#42a5f5" opacity=".45"/>
+    <circle cx="340" cy="250" r="7" fill="#42a5f5" opacity=".45"/>
+    <circle cx="580" cy="150" r="7" fill="#42a5f5" opacity=".45"/>
+
+    <!-- TEXT query embeddings -->
+    <rect x="458" y="92" width="12" height="12" rx="2" fill="#ef5350" opacity=".9" transform="rotate(45 464 98)"/>
+    <rect x="228" y="98" width="12" height="12" rx="2" fill="#ef5350" opacity=".9" transform="rotate(45 234 104)"/>
+    <rect x="498" y="268" width="12" height="12" rx="2" fill="#ef5350" opacity=".9" transform="rotate(45 504 274)"/>
+    <rect x="168" y="298" width="12" height="12" rx="2" fill="#ef5350" opacity=".9" transform="rotate(45 174 304)"/>
+
+    <!-- similarity arrows -->
+    <line x1="234" y1="104" x2="214" y2="116" stroke="#1565c0" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr-blue)"/>
+    <line x1="234" y1="104" x2="244" y2="108" stroke="#1565c0" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <line x1="504" y1="274" x2="494" y2="272" stroke="#1565c0" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <line x1="504" y1="274" x2="522" y2="258" stroke="#1565c0" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr-blue)"/>
+
+    <!-- cluster labels -->
+    <text x="230" y="65" font-size="12" font-weight="600" fill="#1565c0" text-anchor="middle">«Животные»</text>
+    <text x="520" y="340" font-size="12" font-weight="600" fill="#1565c0" text-anchor="middle">«Пейзажи»</text>
+    <text x="170" y="350" font-size="12" font-weight="600" fill="#1565c0" text-anchor="middle">«Документы»</text>
+
+    <!-- query labels -->
+    <text x="465" y="80" font-size="10" font-weight="600" fill="#c62828">q: «кот на диване»</text>
+    <text x="504" y="246" font-size="10" font-weight="600" fill="#c62828">q: «закат в горах»</text>
+    <text x="174" y="265" font-size="10" font-weight="600" fill="#c62828">q: «чек из аптеки»</text>
+
+    <!-- cosine similarity annotation -->
+    <g transform="translate(350,55)">
+      <rect x="0" y="0" width="180" height="36" rx="6" fill="#fff3e0" stroke="#ff9800" stroke-width="1"/>
+      <text x="90" y="15" font-size="10" font-weight="600" fill="#e65100" text-anchor="middle">sim(q̂, v̂) = q̂ · v̂</text>
+      <text x="90" y="28" font-size="9" fill="#bf360c" text-anchor="middle">Косинусное сходство ∈ [−1, 1]</text>
+    </g>
+
+    <!-- legend -->
+    <g transform="translate(100,375)">
+      <circle cx="5" cy="14" r="6" fill="#42a5f5"/>
+      <text x="18" y="18" font-size="11" fill="#555">Эмбеддинги изображений (f<tspan font-size="8" dy="2">img</tspan><tspan dy="-2">)</tspan></text>
+      <rect x="210" y="8" width="10" height="10" rx="2" fill="#ef5350" transform="rotate(45 215 13)"/>
+      <text x="230" y="18" font-size="11" fill="#555">Эмбеддинги текстовых запросов (f<tspan font-size="8" dy="2">text</tspan><tspan dy="-2">)</tspan></text>
+      <line x1="440" y1="14" x2="465" y2="14" stroke="#1565c0" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr-blue)"/>
+      <text x="472" y="18" font-size="11" fill="#555">Ближайшие соседи</text>
+    </g>
+  </svg>
+  <div class="hint">Правый клик на SVG → «Сохранить изображение» или сделайте скриншот этого блока</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- CHART 2 & 3: Benchmark charts -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="chart-section">
+  <h2>2–3. Графики Benchmark Suite</h2>
+  <div class="sub">Слайд 12 — Тестирование и контроль качества</div>
+
+  <div class="side-by-side">
+
+    <!-- CHART 2: Search latency vs index size -->
+    <div>
+      <div style="font-size:13px;font-weight:700;color:#1a237e;margin-bottom:12px;text-align:center;">
+        Латентность поиска (мс) от размера индекса
+      </div>
+      <svg viewBox="0 0 380 280" style="width:380px;height:280px;display:block;margin:0 auto;">
+        <!-- bg -->
+        <rect x="60" y="20" width="300" height="210" rx="4" fill="#fafbfc" stroke="#e8eaed"/>
+
+        <!-- y grid lines + labels -->
+        <line x1="60" y1="230" x2="360" y2="230" stroke="#e8eaed"/>
+        <line x1="60" y1="188" x2="360" y2="188" stroke="#f0f0f0"/>
+        <line x1="60" y1="146" x2="360" y2="146" stroke="#f0f0f0"/>
+        <line x1="60" y1="104" x2="360" y2="104" stroke="#f0f0f0"/>
+        <line x1="60" y1="62" x2="360" y2="62" stroke="#f0f0f0"/>
+        <line x1="60" y1="20" x2="360" y2="20" stroke="#f0f0f0"/>
+
+        <text x="52" y="234" font-size="10" fill="#999" text-anchor="end">0</text>
+        <text x="52" y="192" font-size="10" fill="#999" text-anchor="end">10</text>
+        <text x="52" y="150" font-size="10" fill="#999" text-anchor="end">20</text>
+        <text x="52" y="108" font-size="10" fill="#999" text-anchor="end">30</text>
+        <text x="52" y="66" font-size="10" fill="#999" text-anchor="end">40</text>
+        <text x="52" y="24" font-size="10" fill="#999" text-anchor="end">50</text>
+
+        <!-- y axis label -->
+        <text x="14" y="130" font-size="10" fill="#999" text-anchor="middle" transform="rotate(-90 14 130)">Латентность (мс)</text>
+
+        <!-- bars: 1K=2ms, 10K=8ms, 50K=25ms, 100K=42ms -->
+        <!-- scale: 50ms = 210px, so 1ms = 4.2px -->
+
+        <!-- 1K: 2ms = 8.4px -->
+        <rect x="95" y="221.6" width="50" height="8.4" rx="4" fill="url(#bar-grad-1)"/>
+        <text x="120" y="216" font-size="11" font-weight="700" fill="#1565c0" text-anchor="middle">2 мс</text>
+        <text x="120" y="250" font-size="10" fill="#555" text-anchor="middle">1K</text>
+
+        <!-- 10K: 8ms = 33.6px -->
+        <rect x="160" y="196.4" width="50" height="33.6" rx="4" fill="url(#bar-grad-2)"/>
+        <text x="185" y="191" font-size="11" font-weight="700" fill="#1565c0" text-anchor="middle">8 мс</text>
+        <text x="185" y="250" font-size="10" fill="#555" text-anchor="middle">10K</text>
+
+        <!-- 50K: 25ms = 105px -->
+        <rect x="225" y="125" width="50" height="105" rx="4" fill="url(#bar-grad-3)"/>
+        <text x="250" y="120" font-size="11" font-weight="700" fill="#1565c0" text-anchor="middle">25 мс</text>
+        <text x="250" y="250" font-size="10" fill="#555" text-anchor="middle">50K</text>
+
+        <!-- 100K: 42ms = 176.4px -->
+        <rect x="290" y="53.6" width="50" height="176.4" rx="4" fill="url(#bar-grad-4)"/>
+        <text x="315" y="48" font-size="11" font-weight="700" fill="#1565c0" text-anchor="middle">42 мс</text>
+        <text x="315" y="250" font-size="10" fill="#555" text-anchor="middle">100K</text>
+
+        <!-- x label -->
+        <text x="210" y="270" font-size="10" fill="#999" text-anchor="middle">Количество векторов в индексе</text>
+
+        <!-- threshold line at 50ms -->
+        <line x1="60" y1="20" x2="360" y2="20" stroke="#ef5350" stroke-width="1.5" stroke-dasharray="6 4"/>
+        <text x="362" y="24" font-size="9" fill="#ef5350">≤ 50 мс (требование ТЗ)</text>
+
+        <!-- O(log n) annotation -->
+        <g transform="translate(100,35)">
+          <rect x="0" y="0" width="120" height="22" rx="4" fill="#e8f5e9" stroke="#66bb6a" stroke-width=".8"/>
+          <text x="60" y="15" font-size="10" font-weight="600" fill="#2e7d32" text-anchor="middle">HNSW: O(log n)</text>
+        </g>
+
+        <defs>
+          <linearGradient id="bar-grad-1" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#90caf9"/><stop offset="100%" stop-color="#42a5f5"/>
+          </linearGradient>
+          <linearGradient id="bar-grad-2" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#64b5f6"/><stop offset="100%" stop-color="#1e88e5"/>
+          </linearGradient>
+          <linearGradient id="bar-grad-3" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#42a5f5"/><stop offset="100%" stop-color="#1565c0"/>
+          </linearGradient>
+          <linearGradient id="bar-grad-4" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1e88e5"/><stop offset="100%" stop-color="#0d47a1"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+
+    <!-- CHART 3: Recall@K curve -->
+    <div>
+      <div style="font-size:13px;font-weight:700;color:#1a237e;margin-bottom:12px;text-align:center;">
+        Recall@K (HNSW vs Brute-Force)
+      </div>
+      <svg viewBox="0 0 380 280" style="width:380px;height:280px;display:block;margin:0 auto;">
+        <defs>
+          <linearGradient id="area-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#42a5f5" stop-opacity=".25"/>
+            <stop offset="100%" stop-color="#42a5f5" stop-opacity=".02"/>
+          </linearGradient>
+          <marker id="dot-mark" markerWidth="8" markerHeight="8" refX="4" refY="4">
+            <circle cx="4" cy="4" r="3.5" fill="#1565c0" stroke="#fff" stroke-width="1.5"/>
+          </marker>
+        </defs>
+
+        <!-- bg -->
+        <rect x="60" y="20" width="300" height="210" rx="4" fill="#fafbfc" stroke="#e8eaed"/>
+
+        <!-- y grid -->
+        <line x1="60" y1="230" x2="360" y2="230" stroke="#e8eaed"/>
+        <line x1="60" y1="188" x2="360" y2="188" stroke="#f0f0f0"/>
+        <line x1="60" y1="146" x2="360" y2="146" stroke="#f0f0f0"/>
+        <line x1="60" y1="104" x2="360" y2="104" stroke="#f0f0f0"/>
+        <line x1="60" y1="62" x2="360" y2="62" stroke="#f0f0f0"/>
+        <line x1="60" y1="20" x2="360" y2="20" stroke="#f0f0f0"/>
+
+        <!-- y labels: 0, 0.2, 0.4, 0.6, 0.8, 1.0 -->
+        <text x="52" y="234" font-size="10" fill="#999" text-anchor="end">0</text>
+        <text x="52" y="192" font-size="10" fill="#999" text-anchor="end">0.2</text>
+        <text x="52" y="150" font-size="10" fill="#999" text-anchor="end">0.4</text>
+        <text x="52" y="108" font-size="10" fill="#999" text-anchor="end">0.6</text>
+        <text x="52" y="66" font-size="10" fill="#999" text-anchor="end">0.8</text>
+        <text x="52" y="24" font-size="10" fill="#999" text-anchor="end">1.0</text>
+
+        <text x="14" y="130" font-size="10" fill="#999" text-anchor="middle" transform="rotate(-90 14 130)">Recall</text>
+
+        <!-- x labels: K=1, 5, 10, 20, 50 -->
+        <!-- x positions: 90, 150, 210, 270, 340 -->
+        <text x="90" y="250" font-size="10" fill="#555" text-anchor="middle">K=1</text>
+        <text x="150" y="250" font-size="10" fill="#555" text-anchor="middle">K=5</text>
+        <text x="210" y="250" font-size="10" fill="#555" text-anchor="middle">K=10</text>
+        <text x="270" y="250" font-size="10" fill="#555" text-anchor="middle">K=20</text>
+        <text x="340" y="250" font-size="10" fill="#555" text-anchor="middle">K=50</text>
+
+        <text x="210" y="270" font-size="10" fill="#999" text-anchor="middle">Top-K</text>
+
+        <!-- threshold line at 0.95 -->
+        <!-- 0.95 → y = 230 - (0.95 * 210) = 230 - 199.5 = 30.5 -->
+        <line x1="60" y1="30.5" x2="360" y2="30.5" stroke="#ef5350" stroke-width="1.5" stroke-dasharray="6 4"/>
+        <text x="362" y="34" font-size="9" fill="#ef5350">≥ 0.95 (цель)</text>
+
+        <!-- brute-force reference line (always 1.0) -->
+        <line x1="90" y1="20" x2="340" y2="20" stroke="#bdbdbd" stroke-width="1.5" stroke-dasharray="3 3"/>
+        <text x="362" y="24" font-size="9" fill="#bdbdbd">Brute-Force</text>
+
+        <!-- data points for HNSW recall curve -->
+        <!--
+          K=1:  recall=0.82  → y = 230 - 0.82*210 = 57.8
+          K=5:  recall=0.91  → y = 230 - 0.91*210 = 38.9
+          K=10: recall=0.96  → y = 230 - 0.96*210 = 28.4
+          K=20: recall=0.98  → y = 230 - 0.98*210 = 24.2
+          K=50: recall=0.99  → y = 230 - 0.99*210 = 22.1
+        -->
+
+        <!-- area fill -->
+        <polygon points="90,230 90,57.8 150,38.9 210,28.4 270,24.2 340,22.1 340,230"
+                 fill="url(#area-grad)"/>
+
+        <!-- line -->
+        <polyline points="90,57.8 150,38.9 210,28.4 270,24.2 340,22.1"
+                  fill="none" stroke="#1565c0" stroke-width="2.5" stroke-linejoin="round"/>
+
+        <!-- dots + value labels -->
+        <circle cx="90" cy="57.8" r="5" fill="#1565c0" stroke="#fff" stroke-width="2"/>
+        <text x="90" y="50" font-size="10" font-weight="700" fill="#1565c0" text-anchor="middle">0.82</text>
+
+        <circle cx="150" cy="38.9" r="5" fill="#1565c0" stroke="#fff" stroke-width="2"/>
+        <text x="150" y="31" font-size="10" font-weight="700" fill="#1565c0" text-anchor="middle">0.91</text>
+
+        <circle cx="210" cy="28.4" r="5" fill="#43a047" stroke="#fff" stroke-width="2"/>
+        <rect x="189" y="16" width="42" height="16" rx="3" fill="#e8f5e9" stroke="#66bb6a" stroke-width=".8"/>
+        <text x="210" y="27" font-size="10" font-weight="800" fill="#2e7d32" text-anchor="middle">0.96</text>
+
+        <circle cx="270" cy="24.2" r="5" fill="#43a047" stroke="#fff" stroke-width="2"/>
+        <text x="276" y="40" font-size="10" font-weight="700" fill="#43a047" text-anchor="start">0.98</text>
+
+        <circle cx="340" cy="22.1" r="5" fill="#43a047" stroke="#fff" stroke-width="2"/>
+        <text x="334" y="40" font-size="10" font-weight="700" fill="#43a047" text-anchor="end">0.99</text>
+
+        <!-- K=10 annotation -->
+        <line x1="210" y1="28.4" x2="210" y2="230" stroke="#43a047" stroke-width="1" stroke-dasharray="3 3" opacity=".3"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="hint">Сделайте скриншоты каждого графика по отдельности (или вместе) для вставки в слайд 12</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- BONUS: Pipeline diagram for architecture slide -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="chart-section">
+  <h2>4. (Бонус) Pipeline обработки данных</h2>
+  <div class="sub">Слайд 5 или 10 — Архитектура / Функционал</div>
+
+  <svg viewBox="0 0 720 180" style="width:720px;height:180px;display:block;margin:0 auto;">
+    <!-- Step 1 -->
+    <rect x="10" y="30" width="120" height="70" rx="10" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+    <text x="70" y="55" font-size="11" font-weight="700" fill="#1565c0" text-anchor="middle">MediaStore</text>
+    <text x="70" y="70" font-size="9" fill="#555" text-anchor="middle">Scan API</text>
+    <text x="70" y="83" font-size="9" fill="#555" text-anchor="middle">JPEG / PNG / WebP</text>
+    <text x="70" y="115" font-size="9" font-weight="600" fill="#999" text-anchor="middle">Шаг 1: Сканирование</text>
+
+    <!-- Arrow -->
+    <polygon points="140,65 160,55 160,60 180,60 180,70 160,70 160,75" fill="#90caf9"/>
+
+    <!-- Step 2 -->
+    <rect x="190" y="30" width="120" height="70" rx="10" fill="#fff3e0" stroke="#ef6c00" stroke-width="1.5"/>
+    <text x="250" y="55" font-size="11" font-weight="700" fill="#ef6c00" text-anchor="middle">TFLite CLIP</text>
+    <text x="250" y="70" font-size="9" fill="#555" text-anchor="middle">224×224 → ℝ⁵¹²</text>
+    <text x="250" y="83" font-size="9" fill="#555" text-anchor="middle">GPU / NNAPI</text>
+    <text x="250" y="115" font-size="9" font-weight="600" fill="#999" text-anchor="middle">Шаг 2: Эмбеддинг</text>
+
+    <!-- Arrow -->
+    <polygon points="320,65 340,55 340,60 360,60 360,70 340,70 340,75" fill="#ffcc80"/>
+
+    <!-- Step 3 -->
+    <rect x="370" y="30" width="120" height="70" rx="10" fill="#e8f5e9" stroke="#43a047" stroke-width="1.5"/>
+    <text x="430" y="55" font-size="11" font-weight="700" fill="#43a047" text-anchor="middle">HNSW Index</text>
+    <text x="430" y="70" font-size="9" fill="#555" text-anchor="middle">add(id, vector)</text>
+    <text x="430" y="83" font-size="9" fill="#555" text-anchor="middle">Segment + mmap</text>
+    <text x="430" y="115" font-size="9" font-weight="600" fill="#999" text-anchor="middle">Шаг 3: Индексация</text>
+
+    <!-- Arrow -->
+    <polygon points="500,65 520,55 520,60 540,60 540,70 520,70 520,75" fill="#a5d6a7"/>
+
+    <!-- Step 4 -->
+    <rect x="550" y="30" width="140" height="70" rx="10" fill="#fce4ec" stroke="#c62828" stroke-width="1.5"/>
+    <text x="620" y="50" font-size="11" font-weight="700" fill="#c62828" text-anchor="middle">Cosine Search</text>
+    <text x="620" y="65" font-size="9" fill="#555" text-anchor="middle">sim(q̂, v̂ᵢ) ≥ τ</text>
+    <text x="620" y="78" font-size="9" fill="#555" text-anchor="middle">Top-K ранжирование</text>
+    <text x="620" y="91" font-size="9" fill="#555" text-anchor="middle">< 50 мс @ 50K</text>
+    <text x="620" y="115" font-size="9" font-weight="600" fill="#999" text-anchor="middle">Шаг 4: Поиск</text>
+
+    <!-- WorkManager badge -->
+    <rect x="10" y="140" width="680" height="26" rx="6" fill="#f5f5f5" stroke="#e0e0e0"/>
+    <text x="350" y="158" font-size="10" font-weight="600" fill="#777" text-anchor="middle">
+      WorkManager · Constraints(requiresCharging, networkType=NOT_REQUIRED) · Батч по 50 изображений · Контроль батареи ≥ 20%
+    </text>
+  </svg>
+
+  <div class="hint">Pipeline обработки данных: от сканирования до семантического поиска</div>
+</div>
+
+</body>
+</html>
