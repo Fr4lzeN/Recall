@@ -44,6 +44,8 @@ class PersistentVectorIndex(
         index.remove(id)
     }
 
+    override suspend fun getVector(id: Long): FloatArray? = index.getVector(id)
+
     override suspend fun contains(id: Long): Boolean = index.contains(id)
 
     override fun size(): Int = index.size()

@@ -186,6 +186,16 @@ class SegmentedVectorIndex private constructor(
         }
     }
 
+    override suspend fun getVector(id: Long): FloatArray? {
+        staging.getVector(id)?.let { return it }
+        val posting = postingStore.getByMediaItem(id) ?: return null
+        return lock.read {
+            val segment = frozenSegments[posting.segmentId] ?: return@read null
+            if (segment.deletionBitmap.isDeleted(posting.localIndex)) return@read null
+            segment.reader.readVector(posting.localIndex).copyOf()
+        }
+    }
+
     override suspend fun remove(id: Long) {
         lock.write {
             if (staging.contains(id)) {

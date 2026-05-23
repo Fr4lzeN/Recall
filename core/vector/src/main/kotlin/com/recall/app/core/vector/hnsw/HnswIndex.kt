@@ -90,6 +90,10 @@ class HnswIndex(
         lock.write { removeInternal(id) }
     }
 
+    override suspend fun getVector(id: Long): FloatArray? = lock.read {
+        nodes[id]?.vector?.copyOf()
+    }
+
     override suspend fun contains(id: Long): Boolean = lock.read { nodes.containsKey(id) }
 
     override fun size(): Int = nodes.size

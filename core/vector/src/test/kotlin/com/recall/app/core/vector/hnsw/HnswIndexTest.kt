@@ -71,6 +71,23 @@ class HnswIndexTest {
     }
 
     @Test
+    fun getVector_returnsStoredVector() = runTest {
+        val vector = floatArrayOf(1f, 0f, 0f, 0f)
+        index.add(7L, vector)
+
+        val retrieved = index.getVector(7L)
+        assertEquals(4, retrieved?.size)
+        for (i in vector.indices) {
+            assertEquals(vector[i], retrieved!![i], 1e-5f)
+        }
+    }
+
+    @Test
+    fun getVector_nonExistentId_returnsNull() = runTest {
+        assertEquals(null, index.getVector(999L))
+    }
+
+    @Test
     fun contains_returnsCorrectValues() = runTest {
         assertFalse(index.contains(42L))
         index.add(42L, floatArrayOf(1f, 0f, 0f, 0f))

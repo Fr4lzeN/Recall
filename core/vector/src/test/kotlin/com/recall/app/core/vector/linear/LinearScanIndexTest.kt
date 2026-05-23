@@ -61,6 +61,23 @@ class LinearScanIndexTest {
     }
 
     @Test
+    fun getVector_returnsStoredVector() = runTest {
+        val vector = floatArrayOf(1f, 0f, 0f, 0f)
+        index.add(7L, vector)
+
+        val retrieved = index.getVector(7L)
+        assertEquals(4, retrieved?.size)
+        for (i in vector.indices) {
+            assertEquals(vector[i], retrieved!![i], 1e-5f)
+        }
+    }
+
+    @Test
+    fun getVector_nonExistentId_returnsNull() = runTest {
+        assertEquals(null, index.getVector(999L))
+    }
+
+    @Test
     fun remove_removesVector() = runTest {
         index.add(1L, floatArrayOf(1f, 0f, 0f, 0f))
         index.remove(1L)

@@ -11,6 +11,7 @@ interface VectorIndex {
     suspend fun addBatch(entries: List<Pair<Long, FloatArray>>)
     suspend fun search(query: FloatArray, topK: Int): List<SearchResult>
     suspend fun remove(id: Long)
+    suspend fun getVector(id: Long): FloatArray?
     suspend fun contains(id: Long): Boolean
     fun size(): Int
     fun dimensions(): Int

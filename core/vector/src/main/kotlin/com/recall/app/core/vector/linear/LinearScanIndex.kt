@@ -43,6 +43,10 @@ class LinearScanIndex(
         mutex.withLock { vectors.remove(id) }
     }
 
+    override suspend fun getVector(id: Long): FloatArray? {
+        return mutex.withLock { vectors[id]?.copyOf() }
+    }
+
     override suspend fun contains(id: Long): Boolean {
         return mutex.withLock { vectors.containsKey(id) }
     }

@@ -40,6 +40,31 @@ class SegmentedVectorIndexTest {
     }
 
     @Test
+    fun getVector_returnsVectorFromStagingAndFrozenSegments() = runTest {
+        val dir = createTempDir()
+        val manifest = InMemorySegmentManifest()
+        val postings = InMemoryVectorPostingStore()
+        val index = SegmentedVectorIndex.open(
+            dimensions = 4,
+            segmentsDir = dir,
+            manifest = manifest,
+            postingStore = postings,
+            flushThreshold = 2,
+        )
+
+        index.add(1L, floatArrayOf(1f, 0f, 0f, 0f))
+        val stagingVector = index.getVector(1L)
+        assertEquals(1f, stagingVector!![0], 1e-5f)
+
+        index.add(2L, floatArrayOf(0f, 1f, 0f, 0f))
+        val frozenVector = index.getVector(1L)
+        assertEquals(1f, frozenVector!![0], 1e-5f)
+        assertEquals(null, index.getVector(999L))
+
+        dir.deleteRecursively()
+    }
+
+    @Test
     fun remove_marksDeletionInFrozenSegment() = runTest {
         val dir = createTempDir()
         val manifest = InMemorySegmentManifest()
