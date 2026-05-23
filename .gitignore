@@ -15,6 +15,7 @@
 .externalNativeBuild
 .cxx/
 local.properties
+*.venv
 
 # ML model files
 *.tflite
