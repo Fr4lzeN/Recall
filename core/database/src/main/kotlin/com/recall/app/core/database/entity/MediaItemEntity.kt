@@ -12,6 +12,7 @@ import androidx.room.PrimaryKey
         Index("is_indexed"),
         Index("mime_type"),
         Index("segment_id"),
+        Index("bucket_id"),
     ],
 )
 data class MediaItemEntity(
@@ -30,4 +31,5 @@ data class MediaItemEntity(
     @ColumnInfo(name = "segment_id") val segmentId: Long? = null,
     @ColumnInfo(name = "local_vector_index") val localVectorIndex: Int? = null,
     @ColumnInfo(name = "is_deleted") val isDeleted: Boolean = false,
+    @ColumnInfo(name = "bucket_id", defaultValue = "") val bucketId: String = "",
 )

@@ -8,6 +8,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.recall.app.core.database.dao.AppSettingDao
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import java.util.concurrent.TimeUnit
@@ -17,6 +18,7 @@ import javax.inject.Singleton
 @Singleton
 class IndexingPipelineManager @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val appSettingDao: AppSettingDao,
 ) {
     private val workManager = WorkManager.getInstance(context)
 
@@ -55,6 +57,12 @@ class IndexingPipelineManager @Inject constructor(
             .then(scanWork)
             .then(embedWork)
             .enqueue()
+    }
+
+    suspend fun startFullReindex() {
+        appSettingDao.delete(AppSettingsKeys.LAST_MEDIA_SCAN_TIMESTAMP)
+        workManager.cancelUniqueWork(UNIQUE_INDEX_PIPELINE)
+        startFullIndexing()
     }
 
     fun startPeriodicScan() {

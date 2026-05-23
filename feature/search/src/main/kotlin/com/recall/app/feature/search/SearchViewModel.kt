@@ -2,6 +2,7 @@ package com.recall.app.feature.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.recall.app.core.database.ExcludedDirectoriesRepository
 import com.recall.app.core.database.dao.MediaItemDao
 import com.recall.app.core.ml.EmbeddingModel
 import com.recall.app.core.vector.VectorIndex
@@ -22,6 +23,7 @@ class SearchViewModel @Inject constructor(
     private val embeddingModel: EmbeddingModel,
     private val vectorIndex: VectorIndex,
     private val mediaItemDao: MediaItemDao,
+    private val excludedDirectoriesRepository: ExcludedDirectoriesRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())
@@ -65,8 +67,12 @@ class SearchViewModel @Inject constructor(
                 delay(300)
                 val queryEmbedding = embeddingModel.embedText(query)
                 val results = vectorIndex.search(queryEmbedding, topK = 50)
+                val excludedIds = excludedDirectoriesRepository.getExcludedBucketIds()
                 val resultItems = results.mapNotNull { searchResult ->
                     mediaItemDao.getById(searchResult.id)?.let { entity ->
+                        if (entity.bucketId.isNotEmpty() && entity.bucketId in excludedIds) {
+                            return@mapNotNull null
+                        }
                         SearchResultItem(
                             mediaId = entity.id,
                             uri = entity.uri,

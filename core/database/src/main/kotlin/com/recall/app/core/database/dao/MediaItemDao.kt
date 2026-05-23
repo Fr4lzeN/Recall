@@ -14,6 +14,12 @@ interface MediaItemDao {
     @Query("SELECT * FROM media_items WHERE id = :id")
     suspend fun getById(id: Long): MediaItemEntity?
 
+    @Query("SELECT * FROM media_items WHERE id IN (:ids) AND is_deleted = 0 ORDER BY date_taken DESC")
+    suspend fun getByIds(ids: List<Long>): List<MediaItemEntity>
+
+    @Query("SELECT * FROM media_items WHERE is_indexed = 1 AND is_deleted = 0")
+    suspend fun getIndexed(): List<MediaItemEntity>
+
     @Query("SELECT * FROM media_items WHERE is_indexed = 0 AND is_deleted = 0 LIMIT :limit")
     suspend fun getUnindexed(limit: Int): List<MediaItemEntity>
 

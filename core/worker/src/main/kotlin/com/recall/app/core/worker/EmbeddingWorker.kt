@@ -143,7 +143,7 @@ class EmbeddingWorker @AssistedInject constructor(
     )
 
     companion object {
-        const val BATCH_SIZE = 20
+        const val BATCH_SIZE = 500
         private const val MAX_RETRIES = 3
         private const val KEY_PROCESSED = "processed"
         private const val KEY_TOTAL = "total"

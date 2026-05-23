@@ -26,7 +26,8 @@ object DatabaseModule {
             context,
             RecallDatabase::class.java,
             "recall.db",
-        ).build()
+        ).fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides

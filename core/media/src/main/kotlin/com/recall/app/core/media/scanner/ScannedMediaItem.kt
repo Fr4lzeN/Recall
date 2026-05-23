@@ -13,4 +13,5 @@ data class ScannedMediaItem(
     val height: Int,
     val size: Long,
     val duration: Long?,
+    val bucketId: String,
 )

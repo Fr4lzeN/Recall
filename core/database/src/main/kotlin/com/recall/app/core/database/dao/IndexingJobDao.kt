@@ -35,4 +35,7 @@ interface IndexingJobDao {
 
     @Query("DELETE FROM indexing_jobs WHERE status = 'COMPLETED'")
     suspend fun deleteCompleted()
+
+    @Query("DELETE FROM indexing_jobs WHERE media_item_id IN (:mediaItemIds)")
+    suspend fun deleteByMediaItemIds(mediaItemIds: List<Long>)
 }

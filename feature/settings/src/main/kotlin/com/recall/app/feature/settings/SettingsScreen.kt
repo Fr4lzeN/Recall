@@ -37,6 +37,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,7 +67,12 @@ fun SettingsScreen(
     val totalMedia by viewModel.totalMedia.collectAsStateWithLifecycle()
     val indexedMedia by viewModel.indexedMedia.collectAsStateWithLifecycle()
     val isIndexing by viewModel.isIndexing.collectAsStateWithLifecycle()
+    val exclusionStats by viewModel.exclusionStats.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshExclusionStats()
+    }
 
     val progress = if (totalMedia > 0) indexedMedia.toFloat() / totalMedia else 0f
     val versionName = remember {
@@ -86,8 +92,8 @@ fun SettingsScreen(
     var showReindexDialog by remember { mutableStateOf(false) }
     var showClearDialog by remember { mutableStateOf(false) }
 
-    val excludedCount = 0
-    val skippedItems = 0
+    val excludedCount = exclusionStats.excludedFolderCount
+    val skippedItems = exclusionStats.skippedItemCount
 
     if (showReindexDialog) {
         RecallConfirmDialog(
@@ -204,8 +210,9 @@ fun SettingsScreen(
             item {
                 SettingsRow(
                     icon = Icons.Outlined.SmartToy,
-                    headline = "Model file",
-                    supporting = viewModel.activeProfile.modelFileName,
+                    headline = "Model files",
+                    supporting = "Image: ${viewModel.activeProfile.imageModelFileName}" +
+                        (viewModel.activeProfile.textModelFileName?.let { "\nText: $it" } ?: ""),
                 )
             }
 

@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModel
+import com.recall.app.core.worker.IndexingPipelineManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +22,7 @@ data class OnboardingUiState(
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val indexingPipelineManager: IndexingPipelineManager,
 ) : ViewModel() {
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -98,6 +100,7 @@ class OnboardingViewModel @Inject constructor(
                 showRationaleDialog = false,
             )
         }
+        indexingPipelineManager.startFullIndexing()
     }
 
     private fun resolvePermissionState(): PermissionState {

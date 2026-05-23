@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.recall.app.core.database.ExcludedDirectoriesRepository
 import com.recall.app.core.database.dao.AppSettingDao
 import com.recall.app.core.database.dao.IndexingJobDao
 import com.recall.app.core.database.dao.MediaItemDao
@@ -25,6 +26,7 @@ class MediaScanWorker @AssistedInject constructor(
     private val mediaItemDao: MediaItemDao,
     private val indexingJobDao: IndexingJobDao,
     private val appSettingDao: AppSettingDao,
+    private val excludedDirectoriesRepository: ExcludedDirectoriesRepository,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
@@ -57,6 +59,8 @@ class MediaScanWorker @AssistedInject constructor(
             }.toMap()
         }
 
+        val excludedBucketIds = excludedDirectoriesRepository.getExcludedBucketIds()
+
         val entities = scanned.map { it.toEntity(existingById[it.id]) }
         if (entities.isNotEmpty()) {
             mediaItemDao.upsertAll(entities)
@@ -83,7 +87,10 @@ class MediaScanWorker @AssistedInject constructor(
         }
 
         val now = System.currentTimeMillis()
+        val bucketByMediaId = scanned.associate { it.id to it.bucketId }
+
         val newJobs = entities
+            .filter { bucketByMediaId[it.id] !in excludedBucketIds }
             .filter { !it.isIndexed && !it.isDeleted && it.id !in activeJobMediaIds }
             .map { entity ->
                 IndexingJobEntity(
@@ -98,12 +105,14 @@ class MediaScanWorker @AssistedInject constructor(
             indexingJobDao.insertAll(newJobs)
         }
 
-        appSettingDao.set(
-            AppSettingEntity(
-                key = AppSettingsKeys.LAST_MEDIA_SCAN_TIMESTAMP,
-                value = now.toString(),
-            ),
-        )
+        if (scanned.isNotEmpty() || !isFullScan) {
+            appSettingDao.set(
+                AppSettingEntity(
+                    key = AppSettingsKeys.LAST_MEDIA_SCAN_TIMESTAMP,
+                    value = now.toString(),
+                ),
+            )
+        }
 
         setProgress(
             workDataOf(
@@ -138,6 +147,7 @@ class MediaScanWorker @AssistedInject constructor(
             segmentId = existing?.segmentId,
             localVectorIndex = existing?.localVectorIndex,
             isDeleted = false,
+            bucketId = bucketId,
         )
     }
 

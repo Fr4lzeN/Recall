@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOff
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Button
@@ -51,9 +52,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.recall.app.core.designsystem.component.RecallConfirmDialog
 import com.recall.app.core.designsystem.component.RecallTopBar
+import com.recall.app.core.designsystem.component.LoadingState
 import com.recall.app.core.designsystem.theme.DarkExcludedRowBg
 import com.recall.app.core.designsystem.theme.DarkSummaryCardActiveBg
 import com.recall.app.core.designsystem.theme.DarkSummaryCardActiveBorder
@@ -62,98 +66,16 @@ import com.recall.app.core.designsystem.theme.DarkTilePlaceholder
 import com.recall.app.core.designsystem.theme.RecallTheme
 import kotlinx.coroutines.delay
 
-private data class FolderEntry(
-    val id: String,
-    val name: String,
-    val path: String,
-    val itemCount: Int,
-    val included: Boolean,
-    val thumbnails: List<String>,
-)
-
-private val initialFolders = listOf(
-    FolderEntry(
-        id = "f1",
-        name = "DCIM/Camera",
-        path = "/storage/emulated/0/DCIM/Camera",
-        itemCount = 1842,
-        included = true,
-        thumbnails = listOf(
-            "https://picsum.photos/seed/dcim1/56/56",
-            "https://picsum.photos/seed/dcim2/56/56",
-            "https://picsum.photos/seed/dcim3/56/56",
-            "https://picsum.photos/seed/dcim4/56/56",
-        ),
-    ),
-    FolderEntry(
-        id = "f2",
-        name = "Pictures/Screenshots",
-        path = "/storage/emulated/0/Pictures/Screenshots",
-        itemCount = 326,
-        included = true,
-        thumbnails = listOf(
-            "https://picsum.photos/seed/ss1/56/56",
-            "https://picsum.photos/seed/ss2/56/56",
-            "https://picsum.photos/seed/ss3/56/56",
-            "https://picsum.photos/seed/ss4/56/56",
-        ),
-    ),
-    FolderEntry(
-        id = "f3",
-        name = "Downloads",
-        path = "/storage/emulated/0/Download",
-        itemCount = 89,
-        included = false,
-        thumbnails = listOf(
-            "https://picsum.photos/seed/dl1/56/56",
-            "https://picsum.photos/seed/dl2/56/56",
-            "https://picsum.photos/seed/dl3/56/56",
-            "https://picsum.photos/seed/dl4/56/56",
-        ),
-    ),
-    FolderEntry(
-        id = "f4",
-        name = "WhatsApp/Media",
-        path = "/storage/emulated/0/Android/media/com.whatsapp/WhatsApp/Media",
-        itemCount = 412,
-        included = false,
-        thumbnails = listOf(
-            "https://picsum.photos/seed/wa1/56/56",
-            "https://picsum.photos/seed/wa2/56/56",
-            "https://picsum.photos/seed/wa3/56/56",
-            "https://picsum.photos/seed/wa4/56/56",
-        ),
-    ),
-    FolderEntry(
-        id = "f5",
-        name = "Pictures/Recall",
-        path = "/storage/emulated/0/Pictures/Recall",
-        itemCount = 12,
-        included = true,
-        thumbnails = listOf(
-            "https://picsum.photos/seed/rc1/56/56",
-            "https://picsum.photos/seed/rc2/56/56",
-            "https://picsum.photos/seed/rc3/56/56",
-            "https://picsum.photos/seed/rc4/56/56",
-        ),
-    ),
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DirectoryExclusionScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: DirectoryExclusionViewModel = hiltViewModel(),
 ) {
-    var folders by remember { mutableStateOf(initialFolders) }
-    val initialIncluded = remember { initialFolders.map { it.included } }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showReindexDialog by remember { mutableStateOf(false) }
     var snackbarMessage by remember { mutableStateOf<String?>(null) }
-
-    val hasChanges = folders.map { it.included } != initialIncluded
-    val excludedFolders = folders.filter { !it.included }
-    val excludedCount = excludedFolders.size
-    val skippedItems = excludedFolders.sumOf { it.itemCount }
 
     LaunchedEffect(snackbarMessage) {
         if (snackbarMessage != null) {
@@ -170,8 +92,10 @@ fun DirectoryExclusionScreen(
             dismissLabel = "Later",
             onConfirm = {
                 showReindexDialog = false
-                snackbarMessage = "Re-indexing started with new exclusions."
-                onNavigateBack()
+                viewModel.applyAndReindex {
+                    snackbarMessage = "Re-indexing started with new exclusions."
+                    onNavigateBack()
+                }
             },
             onDismiss = { showReindexDialog = false },
         )
@@ -202,41 +126,52 @@ fun DirectoryExclusionScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    bottom = if (hasChanges) 140.dp else 16.dp,
-                ),
-            ) {
-                item {
-                    SummaryCard(
-                        excludedCount = excludedCount,
-                        skippedItems = skippedItems,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    )
+            when {
+                uiState.isLoading -> LoadingState(modifier = Modifier.fillMaxSize())
+                uiState.folders.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "No media folders found on this device.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
-                items(folders, key = { it.id }) { folder ->
-                    FolderRow(
-                        folder = folder,
-                        onToggle = {
-                            folders = folders.map { entry ->
-                                if (entry.id == folder.id) {
-                                    entry.copy(included = !entry.included)
-                                } else {
-                                    entry
-                                }
-                            }
-                        },
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    )
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            bottom = if (uiState.hasChanges) 140.dp else 16.dp,
+                        ),
+                    ) {
+                        item {
+                            SummaryCard(
+                                excludedCount = uiState.excludedCount,
+                                skippedItems = uiState.skippedItems,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            )
+                        }
+                        items(uiState.folders, key = { it.bucketId }) { folder ->
+                            FolderRow(
+                                folder = folder,
+                                onToggle = { viewModel.toggleFolder(folder.bucketId) },
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
                 }
             }
 
-            if (hasChanges) {
+            if (uiState.hasChanges) {
                 StickyApplyBar(
                     onApplyReindex = { showReindexDialog = true },
                     onApplyOnly = {
-                        snackbarMessage = "Exclusions saved. Re-index from Settings when ready."
+                        viewModel.applyWithoutReindex {
+                            snackbarMessage = "Exclusions saved. Re-index from Settings when ready."
+                        }
                     },
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
@@ -249,7 +184,7 @@ fun DirectoryExclusionScreen(
                         .padding(
                             start = 16.dp,
                             end = 16.dp,
-                            bottom = if (hasChanges) 140.dp else 24.dp,
+                            bottom = if (uiState.hasChanges) 140.dp else 24.dp,
                         ),
                     shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -328,7 +263,7 @@ private fun SummaryCard(
 
 @Composable
 private fun FolderRow(
-    folder: FolderEntry,
+    folder: FolderUiModel,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -363,7 +298,7 @@ private fun FolderRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             FolderThumbnailCollage(
-                thumbnails = folder.thumbnails,
+                coverUris = folder.coverUris,
                 excluded = excluded,
             )
             Column(modifier = Modifier.weight(1f)) {
@@ -406,7 +341,7 @@ private fun FolderRow(
 
 @Composable
 private fun FolderThumbnailCollage(
-    thumbnails: List<String>,
+    coverUris: List<String>,
     excluded: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -416,14 +351,25 @@ private fun FolderThumbnailCollage(
             .clip(RoundedCornerShape(8.dp))
             .background(DarkTilePlaceholder),
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Row(modifier = Modifier.weight(1f)) {
-                ThumbnailCell(url = thumbnails.getOrNull(0), modifier = Modifier.weight(1f))
-                ThumbnailCell(url = thumbnails.getOrNull(1), modifier = Modifier.weight(1f))
-            }
-            Row(modifier = Modifier.weight(1f)) {
-                ThumbnailCell(url = thumbnails.getOrNull(2), modifier = Modifier.weight(1f))
-                ThumbnailCell(url = thumbnails.getOrNull(3), modifier = Modifier.weight(1f))
+        if (coverUris.isEmpty()) {
+            Icon(
+                imageVector = Icons.Outlined.Folder,
+                contentDescription = null,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(modifier = Modifier.weight(1f)) {
+                    ThumbnailCell(uri = coverUris.getOrNull(0), modifier = Modifier.weight(1f))
+                    ThumbnailCell(uri = coverUris.getOrNull(1), modifier = Modifier.weight(1f))
+                }
+                Row(modifier = Modifier.weight(1f)) {
+                    ThumbnailCell(uri = coverUris.getOrNull(2), modifier = Modifier.weight(1f))
+                    ThumbnailCell(uri = coverUris.getOrNull(3), modifier = Modifier.weight(1f))
+                }
             }
         }
         if (excluded) {
@@ -446,7 +392,7 @@ private fun FolderThumbnailCollage(
 
 @Composable
 private fun ThumbnailCell(
-    url: String?,
+    uri: String?,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -455,9 +401,9 @@ private fun ThumbnailCell(
             .padding(0.5.dp)
             .clip(RoundedCornerShape(2.dp)),
     ) {
-        if (url != null) {
+        if (uri != null) {
             AsyncImage(
-                model = url,
+                model = uri,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
