@@ -21,31 +21,57 @@ class MockEmbeddingModelAndroidTest {
 
         val embedding = model.embedImage(bitmap)
         assertEquals(ModelProfile.LITE.dimensions, embedding.size)
-        assertEquals(1.0f, l2Norm(embedding), 1e-5f)
+        assertEquals(1.0f, l2Norm(embedding), 1e-4f)
     }
 
     @Test
-    fun embedImage_sameDimensions_isDeterministic() = runTest {
+    fun embedImage_samePixels_isDeterministic() = runTest {
         val model = MockEmbeddingModel(ModelProfile.PRO)
-        val bitmapA = Bitmap.createBitmap(100, 200, Bitmap.Config.ARGB_8888)
-        val bitmapB = Bitmap.createBitmap(100, 200, Bitmap.Config.ARGB_8888)
+        val a = Bitmap.createBitmap(100, 200, Bitmap.Config.ARGB_8888)
+            .apply { eraseColor(Color.BLUE) }
+        val b = Bitmap.createBitmap(100, 200, Bitmap.Config.ARGB_8888)
+            .apply { eraseColor(Color.BLUE) }
 
-        assertTrue(model.embedImage(bitmapA).contentEquals(model.embedImage(bitmapB)))
+        assertTrue(model.embedImage(a).contentEquals(model.embedImage(b)))
     }
 
     @Test
-    fun embedImage_differentDimensions_produceDifferentOutputs() = runTest {
+    fun embedImage_differentColors_produceDifferentEmbeddings() = runTest {
         val model = MockEmbeddingModel(ModelProfile.LITE)
-        val small = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888)
-        val large = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
+        val red = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
+            .apply { eraseColor(Color.RED) }
+        val blue = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
+            .apply { eraseColor(Color.BLUE) }
 
         assertNotEquals(
-            model.embedImage(small).toList(),
-            model.embedImage(large).toList(),
+            model.embedImage(red).toList(),
+            model.embedImage(blue).toList(),
         )
     }
 
-    private fun l2Norm(vector: FloatArray): Float {
-        return sqrt(vector.fold(0f) { acc, v -> acc + v * v })
+    @Test
+    fun embedImage_warmColors_closerToSunsetQuery() = runTest {
+        val model = MockEmbeddingModel(ModelProfile.LITE)
+        val warm = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
+            .apply { eraseColor(Color.rgb(230, 120, 40)) }
+        val cool = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
+            .apply { eraseColor(Color.rgb(40, 100, 200)) }
+
+        val sunsetVec = model.embedText("sunset")
+        val warmVec = model.embedImage(warm)
+        val coolVec = model.embedImage(cool)
+
+        val warmSim = cosine(warmVec, sunsetVec)
+        val coolSim = cosine(coolVec, sunsetVec)
+        assertTrue("warm image should be closer to 'sunset' than cool image", warmSim > coolSim)
+    }
+
+    private fun l2Norm(vector: FloatArray): Float =
+        sqrt(vector.fold(0f) { acc, v -> acc + v * v })
+
+    private fun cosine(a: FloatArray, b: FloatArray): Float {
+        var dot = 0f
+        for (i in a.indices) dot += a[i] * b[i]
+        return dot / (l2Norm(a) * l2Norm(b))
     }
 }

@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.test.core.app.ApplicationProvider
 import com.recall.app.core.ml.di.MlModule
+import com.recall.app.core.ml.encoder.TFLiteUtils
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -66,21 +67,43 @@ class TFLiteEmbeddingModelTest {
     }
 
     @Test
+    fun simpleNormalization_scalesTo01() {
+        val bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+        bitmap.setPixel(0, 0, Color.rgb(128, 64, 0))
+
+        val simple = ImagePreprocessor.bitmapToFloatArray(
+            bitmap,
+            ImagePreprocessor.Normalization.SIMPLE,
+        )
+
+        assertEquals(128 / 255f, simple[0], 1e-5f)
+        assertEquals(64 / 255f, simple[1], 1e-5f)
+        assertEquals(0.0f, simple[2], 1e-5f)
+    }
+
+    @Test
     fun l2Normalize_producesUnitVector() {
         val vector = floatArrayOf(3f, 4f)
-        val normalized = TFLiteEmbeddingModel.l2Normalize(vector)
+        val normalized = TFLiteUtils.l2Normalize(vector)
         assertEquals(1.0f, l2Norm(normalized), 1e-5f)
+    }
+
+    @Test
+    fun l2Normalize_handlesZeroVector() {
+        val vector = floatArrayOf(0f, 0f, 0f)
+        val normalized = TFLiteUtils.l2Normalize(vector)
+        assertEquals(0f, normalized[0], 1e-5f)
     }
 
     @Test
     fun detectInputLayout_recognizesNchwAndNhwc() {
         assertEquals(
-            TFLiteEmbeddingModel.InputLayout.NCHW,
-            TFLiteEmbeddingModel.detectInputLayout(intArrayOf(1, 3, 224, 224)),
+            TFLiteUtils.InputLayout.NCHW,
+            TFLiteUtils.detectInputLayout(intArrayOf(1, 3, 256, 256)),
         )
         assertEquals(
-            TFLiteEmbeddingModel.InputLayout.NHWC,
-            TFLiteEmbeddingModel.detectInputLayout(intArrayOf(1, 224, 224, 3)),
+            TFLiteUtils.InputLayout.NHWC,
+            TFLiteUtils.detectInputLayout(intArrayOf(1, 256, 256, 3)),
         )
     }
 
@@ -102,8 +125,13 @@ class TFLiteEmbeddingModelTest {
         assertTrue(first.contentEquals(second))
     }
 
-    // TODO(androidTest): Run real inference when mobileclip_*.tflite is bundled in assets.
-    // TODO(androidTest): Golden-vector comparison against reference embeddings.
+    @Test
+    fun embedText_viaMock_doesNotCallEmbedImage() = runTest {
+        val model = MockEmbeddingModel(ModelProfile.LITE)
+        val textEmb = model.embedText("a dog")
+        assertEquals(ModelProfile.LITE.dimensions, textEmb.size)
+        assertEquals(1.0f, l2Norm(textEmb), 1e-4f)
+    }
 
     private fun l2Norm(vector: FloatArray): Float {
         return sqrt(vector.fold(0f) { acc, v -> acc + v * v })

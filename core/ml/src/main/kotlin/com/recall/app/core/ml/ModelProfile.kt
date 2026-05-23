@@ -6,14 +6,53 @@ data class ModelProfile(
     val name: String,
     val dimensions: Int,
     val quantization: QuantizationType,
-    val modelFileName: String,
+    val imageModelFileName: String,
+    val textModelFileName: String?,
+    val inputImageSize: Int,
+    val maxTextTokens: Int,
+    val useSimpleNormalization: Boolean,
     val minRamMb: Int,
     val expectedLatencyMs: Long,
 ) {
     companion object {
-        val LITE = ModelProfile("Lite", 384, QuantizationType.INT8, "mobileclip_lite_int8.tflite", 2048, 100)
-        val STANDARD = ModelProfile("Standard", 512, QuantizationType.FLOAT16, "mobileclip_standard_fp16.tflite", 4096, 200)
-        val PRO = ModelProfile("Pro", 512, QuantizationType.FLOAT32, "mobileclip_pro_fp32.tflite", 8192, 500)
+        val LITE = ModelProfile(
+            name = "Lite",
+            dimensions = 512,
+            quantization = QuantizationType.INT8,
+            imageModelFileName = "models/mobileclip_s0_image_encoder_fp16.tflite",
+            textModelFileName = "models/mobileclip_s0_text_encoder_fp16.tflite",
+            inputImageSize = 256,
+            maxTextTokens = 77,
+            useSimpleNormalization = true,
+            minRamMb = 2048,
+            expectedLatencyMs = 100,
+        )
+
+        val STANDARD = ModelProfile(
+            name = "Standard",
+            dimensions = 512,
+            quantization = QuantizationType.FLOAT16,
+            imageModelFileName = "models/mobileclip_s0_image_encoder_fp16.tflite",
+            textModelFileName = "models/mobileclip_s0_text_encoder_fp16.tflite",
+            inputImageSize = 256,
+            maxTextTokens = 77,
+            useSimpleNormalization = true,
+            minRamMb = 4096,
+            expectedLatencyMs = 200,
+        )
+
+        val PRO = ModelProfile(
+            name = "Pro",
+            dimensions = 512,
+            quantization = QuantizationType.FLOAT32,
+            imageModelFileName = "models/mobileclip_s0_image_encoder_fp16.tflite",
+            textModelFileName = "models/mobileclip_s0_text_encoder_fp16.tflite",
+            inputImageSize = 256,
+            maxTextTokens = 77,
+            useSimpleNormalization = true,
+            minRamMb = 8192,
+            expectedLatencyMs = 500,
+        )
 
         val ALL = listOf(LITE, STANDARD, PRO)
     }
