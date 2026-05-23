@@ -1,12 +1,19 @@
 package com.recall.app.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.recall.app.feature.albums.AlbumDetailScreen
+import com.recall.app.feature.albums.AlbumsScreen
+import com.recall.app.feature.albums.AlbumsViewModel
+import com.recall.app.feature.albums.navigation.AlbumDetailRoute
+import com.recall.app.feature.albums.navigation.AlbumsRoute
 import com.recall.app.feature.detail.MediaDetailScreen
 import com.recall.app.feature.detail.navigation.DetailRoute
 import com.recall.app.feature.onboarding.OnboardingScreen
@@ -37,6 +44,45 @@ fun RecallNavHost(
             popExitTransition = topLevelPopExitTransition(),
         ) {
             SearchScreen(
+                onMediaClick = { mediaId ->
+                    navController.navigateToDetail(mediaId)
+                },
+            )
+        }
+        composable(
+            route = AlbumsRoute.ROUTE,
+            enterTransition = topLevelEnterTransition(),
+            exitTransition = topLevelExitTransition(),
+            popEnterTransition = topLevelPopEnterTransition(),
+            popExitTransition = topLevelPopExitTransition(),
+        ) {
+            AlbumsScreen(
+                onAlbumClick = { albumIndex ->
+                    navController.navigateToAlbumDetail(albumIndex)
+                },
+            )
+        }
+        composable(
+            route = AlbumDetailRoute.ROUTE,
+            arguments = listOf(
+                navArgument(AlbumDetailRoute.ALBUM_INDEX_ARG) {
+                    type = NavType.IntType
+                },
+            ),
+            enterTransition = detailEnterTransition(),
+            exitTransition = detailExitTransition(),
+            popEnterTransition = detailPopEnterTransition(),
+            popExitTransition = detailPopExitTransition(),
+        ) { backStackEntry ->
+            val albumIndex = backStackEntry.arguments?.getInt(AlbumDetailRoute.ALBUM_INDEX_ARG) ?: 0
+            val parentEntry = remember(backStackEntry) {
+                navController.getBackStackEntry(AlbumsRoute.ROUTE)
+            }
+            val albumsViewModel: AlbumsViewModel = hiltViewModel(parentEntry)
+            AlbumDetailScreen(
+                albumIndex = albumIndex,
+                albumsViewModel = albumsViewModel,
+                onNavigateBack = { navController.popBackStack() },
                 onMediaClick = { mediaId ->
                     navController.navigateToDetail(mediaId)
                 },

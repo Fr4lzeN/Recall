@@ -1,0 +1,15 @@
+plugins {
+    alias(libs.plugins.recall.android.feature)
+}
+
+android {
+    namespace = "com.recall.app.feature.albums"
+}
+
+dependencies {
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.coil.compose)
+    implementation(project(":core:database"))
+    implementation(project(":core:ml"))
+    implementation(project(":core:vector"))
+}

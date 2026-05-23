@@ -15,6 +15,23 @@ fun NavController.navigateToSearch(builder: NavOptionsBuilder.() -> Unit = {}) {
     }
 }
 
+fun NavController.navigateToAlbums(builder: NavOptionsBuilder.() -> Unit = {}) {
+    navigate(RecallRoute.ALBUMS) {
+        popUpTo(graph.findStartDestination().id) {
+            saveState = true
+        }
+        launchSingleTop = true
+        restoreState = true
+        builder()
+    }
+}
+
+fun NavController.navigateToAlbumDetail(albumIndex: Int) {
+    navigate("albums/$albumIndex") {
+        launchSingleTop = true
+    }
+}
+
 fun NavController.navigateToTimeline(builder: NavOptionsBuilder.() -> Unit = {}) {
     navigate(RecallRoute.TIMELINE) {
         popUpTo(graph.findStartDestination().id) {

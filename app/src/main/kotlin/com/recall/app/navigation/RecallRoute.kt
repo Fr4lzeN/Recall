@@ -2,6 +2,9 @@ package com.recall.app.navigation
 
 object RecallRoute {
     const val SEARCH = "search"
+    const val ALBUMS = "albums"
+    const val ALBUM_DETAIL = "albums/{albumIndex}"
+    const val ALBUM_INDEX_ARG = "albumIndex"
     const val TIMELINE = "timeline"
     const val SETTINGS = "settings"
     const val ONBOARDING = "onboarding"

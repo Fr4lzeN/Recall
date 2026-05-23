@@ -12,6 +12,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.navigation.NavBackStackEntry
 import com.recall.app.feature.detail.navigation.DetailRoute
+import com.recall.app.feature.albums.navigation.AlbumsRoute
 import com.recall.app.feature.search.navigation.SearchRoute
 import com.recall.app.feature.timeline.navigation.TimelineRoute
 
@@ -19,6 +20,7 @@ private const val TRANSITION_DURATION_MS = 300
 
 private val topLevelRoutes = setOf(
     SearchRoute.ROUTE,
+    AlbumsRoute.ROUTE,
     TimelineRoute.ROUTE,
     RecallRoute.SETTINGS,
 )

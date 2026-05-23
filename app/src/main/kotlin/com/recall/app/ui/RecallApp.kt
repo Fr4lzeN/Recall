@@ -34,6 +34,7 @@ import com.recall.app.feature.onboarding.OnboardingViewModel
 import com.recall.app.navigation.RecallNavHost
 import com.recall.app.navigation.RecallRoute
 import com.recall.app.navigation.TopLevelDestination
+import com.recall.app.navigation.navigateToAlbums
 import com.recall.app.navigation.navigateToSearch
 import com.recall.app.navigation.navigateToSettings
 import com.recall.app.navigation.navigateToTimeline
@@ -65,6 +66,7 @@ fun RecallApp(
                     onDestinationClick = { destination ->
                         when (destination) {
                             TopLevelDestination.Search -> navController.navigateToSearch()
+                            TopLevelDestination.Albums -> navController.navigateToAlbums()
                             TopLevelDestination.Timeline -> navController.navigateToTimeline()
                             TopLevelDestination.Settings -> navController.navigateToSettings()
                         }

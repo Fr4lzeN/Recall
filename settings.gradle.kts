@@ -38,6 +38,7 @@ include(":core:designsystem")
 
 // Feature modules
 include(":feature:search")
+include(":feature:albums")
 include(":feature:timeline")
 include(":feature:detail")
 include(":feature:settings")
