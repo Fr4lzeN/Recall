@@ -23,6 +23,17 @@ android {
             )
         }
     }
+
+    flavorDimensions += "model"
+    productFlavors {
+        create("demo") {
+            dimension = "model"
+            applicationIdSuffix = ".demo"
+        }
+        create("real") {
+            dimension = "model"
+        }
+    }
 }
 
 dependencies {
@@ -34,11 +45,13 @@ dependencies {
     implementation(project(":core:worker"))
 
     implementation(project(":feature:search"))
+    implementation(project(":feature:albums"))
     implementation(project(":feature:timeline"))
     implementation(project(":feature:detail"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:onboarding"))
 
+    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.navigation.compose)
