@@ -8,6 +8,7 @@ class UnavailableEmbeddingModel(
 ) : EmbeddingModel {
     override val dimensions: Int = profile.dimensions
     override val profileName: String = profile.name
+    override val modelName: String = profile.modelName
     override val modelId: String = "unavailable:${profile.imageModelFileName}"
     override val initializationError: String =
         "Search model could not be loaded. Install a build containing the model and tokenizer. " +

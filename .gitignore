@@ -26,6 +26,7 @@ local.properties
 *.pt
 *.pth
 *.onnx.data
+**/assets/tokenizer/bpe_simple_vocab_16e6.txt*
 
 # Gradle
 .gradle/

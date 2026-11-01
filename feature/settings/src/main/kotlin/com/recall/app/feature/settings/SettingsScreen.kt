@@ -23,7 +23,6 @@ import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SdStorage
-import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Button
@@ -215,14 +214,6 @@ fun SettingsScreen(
                     icon = Icons.Outlined.Tune,
                     headline = "Execution profile: ${viewModel.modelProfileName}",
                     supporting = viewModel.modelStatus,
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Outlined.SmartToy,
-                    headline = "Model files",
-                    supporting = "Image: ${viewModel.activeProfile.imageModelFileName}" +
-                        (viewModel.activeProfile.textModelFileName?.let { "\nText: $it" } ?: ""),
                 )
             }
 

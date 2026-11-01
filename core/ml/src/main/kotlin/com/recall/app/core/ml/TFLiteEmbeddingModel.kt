@@ -17,6 +17,7 @@ class TFLiteEmbeddingModel(
 
     override val dimensions: Int = profile.dimensions
     override val profileName: String = profile.name
+    override val modelName: String = profile.modelName
     override val modelId: String
 
     private val imageEncoder: TFLiteImageEncoder
@@ -35,7 +36,7 @@ class TFLiteEmbeddingModel(
         digest.update("${profile.inputImageSize}:${profile.maxTextTokens}:${profile.useSimpleNormalization}".toByteArray())
         digest.update(imgBuffer.asReadOnlyBuffer())
         digest.update(txtBuffer.asReadOnlyBuffer())
-        context.assets.open("tokenizer/bpe_simple_vocab_16e6.txt.gz").use { stream ->
+        ClipBpeTokenizer.openVocabulary(context).use { stream ->
             val buffer = ByteArray(8192)
             while (true) {
                 val count = stream.read(buffer)

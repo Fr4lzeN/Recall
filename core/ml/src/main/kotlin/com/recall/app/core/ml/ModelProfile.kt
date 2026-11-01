@@ -14,7 +14,11 @@ data class ModelProfile(
     val minRamMb: Int,
     val expectedLatencyMs: Long,
 ) {
-    val modelName: String get() = "MobileCLIP-S0 FP16"
+    val modelName: String get() = "MobileCLIP-S0 " + when (quantization) {
+        QuantizationType.FLOAT16 -> "FP16"
+        QuantizationType.FLOAT32 -> "FP32"
+        QuantizationType.INT8 -> "INT8"
+    }
 
     companion object {
         val LITE = ModelProfile(

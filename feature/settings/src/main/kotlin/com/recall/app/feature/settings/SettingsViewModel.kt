@@ -44,7 +44,7 @@ class SettingsViewModel @Inject constructor(
     val modelStatus: String = when {
         modelInitializationError != null -> "Unavailable: $modelInitializationError"
         embeddingModel.modelId.startsWith("mock") -> "Demo model · semantic search is simulated"
-        else -> "${activeProfile.modelName} · ${embeddingModel.dimensions} dimensions"
+        else -> "${embeddingModel.modelName} · ${embeddingModel.dimensions} dimensions"
     }
     val deviceInfo: DeviceInfo = deviceProfiler.profile()
 

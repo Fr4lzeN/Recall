@@ -24,6 +24,7 @@ class MockEmbeddingModel(
 
     override val dimensions: Int = profile.dimensions
     override val profileName: String = profile.name
+    override val modelName: String = "Demo color model"
     override val modelId: String = "mock-color-v1:${profile.dimensions}"
 
     private val projectionMatrix: Array<FloatArray> by lazy { buildProjection() }

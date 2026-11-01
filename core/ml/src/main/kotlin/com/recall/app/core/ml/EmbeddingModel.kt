@@ -7,6 +7,7 @@ interface EmbeddingModel {
     suspend fun embedText(text: String): FloatArray
     val dimensions: Int
     val profileName: String
+    val modelName: String get() = profileName
     val modelId: String get() = "$profileName:$dimensions"
     val initializationError: String? get() = null
     fun close()

@@ -2,6 +2,8 @@ package com.recall.app.core.ml.tokenizer
 
 import android.content.Context
 import java.io.BufferedReader
+import java.io.FileNotFoundException
+import java.io.InputStream
 import java.io.InputStreamReader
 import java.util.regex.Pattern
 import java.util.zip.GZIPInputStream
@@ -130,18 +132,35 @@ class ClipBpeTokenizer private constructor(
         const val SOT_TOKEN = 49406
         const val EOT_TOKEN = 49407
         private const val END_WORD = "</w>"
-        private const val VOCAB_ASSET = "tokenizer/bpe_simple_vocab_16e6.txt.gz"
+        internal const val VOCAB_ASSET_GZIP = "tokenizer/bpe_simple_vocab_16e6.txt.gz"
+        internal const val VOCAB_ASSET_PLAIN = "tokenizer/bpe_simple_vocab_16e6.txt"
         private const val DEFAULT_CONTEXT_LENGTH = 77
         internal const val MERGE_COUNT = 48894
 
         fun create(context: Context, contextLength: Int = DEFAULT_CONTEXT_LENGTH): ClipBpeTokenizer {
-            val lines = context.assets.open(VOCAB_ASSET).use { raw ->
-                GZIPInputStream(raw).use { gzip ->
-                    BufferedReader(InputStreamReader(gzip, Charsets.UTF_8)).readLines()
-                }
+            val lines = openVocabulary(context).use { stream ->
+                BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).readLines()
             }
 
             return fromVocabularyLines(lines, contextLength)
+        }
+
+        internal fun openVocabulary(context: Context): InputStream =
+            openVocabulary { name -> context.assets.open(name) }
+
+        internal fun openVocabulary(openAsset: (String) -> InputStream): InputStream {
+            // AAPT can unpack .gz assets and package the same vocabulary as .txt.
+            val compressed = try {
+                openAsset(VOCAB_ASSET_GZIP)
+            } catch (_: FileNotFoundException) {
+                return openAsset(VOCAB_ASSET_PLAIN)
+            }
+            return try {
+                GZIPInputStream(compressed)
+            } catch (error: Throwable) {
+                runCatching { compressed.close() }
+                throw error
+            }
         }
 
         internal fun fromVocabularyLines(
