@@ -14,7 +14,19 @@ object ImagePreprocessor {
     private val clipStd = floatArrayOf(0.229f, 0.224f, 0.225f)
 
     fun preprocess(bitmap: Bitmap, targetSize: Int = 224): Bitmap {
-        return Bitmap.createScaledBitmap(bitmap, targetSize, targetSize, true)
+        require(targetSize > 0) { "Target image size must be positive" }
+        val shorterSide = minOf(bitmap.width, bitmap.height)
+        val scaledWidth = if (bitmap.width == shorterSide) targetSize else
+            (bitmap.width.toLong() * targetSize / shorterSide).toInt()
+        val scaledHeight = if (bitmap.height == shorterSide) targetSize else
+            (bitmap.height.toLong() * targetSize / shorterSide).toInt()
+        val scaled = Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true)
+        // Match torchvision Resize(shorter side) followed by CenterCrop.
+        val left = Math.rint((scaledWidth - targetSize) / 2.0).toInt()
+        val top = Math.rint((scaledHeight - targetSize) / 2.0).toInt()
+        val cropped = Bitmap.createBitmap(scaled, left, top, targetSize, targetSize)
+        if (scaled !== bitmap && scaled !== cropped) scaled.recycle()
+        return cropped
     }
 
     fun bitmapToFloatArray(

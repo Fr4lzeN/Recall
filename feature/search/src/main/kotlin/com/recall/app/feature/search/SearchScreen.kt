@@ -1,13 +1,14 @@
 package com.recall.app.feature.search
 
 import android.net.Uri
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -20,13 +21,14 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -63,6 +65,13 @@ fun SearchScreen(
                 onQueryChange = viewModel::onQueryChange,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             )
+            if (uiState.query.isNotBlank() && uiState.error == null) {
+                SearchFilterControls(
+                    minSimilarity = uiState.minSimilarity,
+                    onMinSimilarityChange = viewModel::onMinSimilarityChange,
+                    onShowNearest = viewModel::showNearestPhotos,
+                )
+            }
             when {
                 uiState.error != null -> {
                     ErrorState(
@@ -102,7 +111,7 @@ fun SearchScreen(
                 uiState.results.isEmpty() -> {
                     EmptyState(
                         title = "No photos match your search",
-                        description = "Try a different description — Recall matches photos by meaning, not exact filenames.",
+                        description = "Try another description or lower the search filter to include more photos.",
                         icon = Icons.Outlined.ImageNotSupported,
                         animateIcon = false,
                     )
@@ -137,8 +146,7 @@ private fun SearchResultGridItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scorePercent = (item.score * 100).toInt()
-    val imageDescription = "${item.displayName}, ${scorePercent}% match"
+    val imageDescription = item.displayName
 
     Surface(
         onClick = onClick,
@@ -159,21 +167,38 @@ private fun SearchResultGridItem(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(6.dp)
-                    .clip(MaterialTheme.shapes.extraSmall)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.9f))
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
-            ) {
-                Text(
-                    text = "$scorePercent%",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
+        }
+    }
+}
+
+@Composable
+private fun SearchFilterControls(
+    minSimilarity: Float,
+    onMinSimilarityChange: (Float) -> Unit,
+    onShowNearest: () -> Unit,
+) {
+    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text("Search strictness", style = MaterialTheme.typography.labelLarge)
+            TextButton(onClick = onShowNearest) {
+                Text(if (minSimilarity < 0f) "Showing nearest photos" else "Show nearest photos")
             }
         }
+        Slider(
+            value = minSimilarity.coerceIn(0f, 0.5f),
+            onValueChange = onMinSimilarityChange,
+            valueRange = 0f..0.5f,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            text = "Move left to include more photos. Nearest photos may include unrelated images.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

@@ -17,6 +17,9 @@ interface MediaItemDao {
     @Query("SELECT * FROM media_items WHERE id IN (:ids) AND is_deleted = 0 ORDER BY date_taken DESC")
     suspend fun getByIds(ids: List<Long>): List<MediaItemEntity>
 
+    @Query("SELECT * FROM media_items WHERE id IN (:ids)")
+    suspend fun getByIdsIncludingDeleted(ids: List<Long>): List<MediaItemEntity>
+
     @Query("SELECT * FROM media_items WHERE is_indexed = 1 AND is_deleted = 0")
     suspend fun getIndexed(): List<MediaItemEntity>
 
@@ -46,6 +49,12 @@ interface MediaItemDao {
 
     @Query("UPDATE media_items SET is_deleted = 1 WHERE id IN (:ids)")
     suspend fun markDeleted(ids: List<Long>)
+
+    @Query(
+        "UPDATE media_items SET is_indexed = 0, embedding_version = NULL, " +
+            "segment_id = NULL, local_vector_index = NULL",
+    )
+    suspend fun markAllUnindexed()
 
     @Query("SELECT id FROM media_items WHERE is_deleted = 0")
     suspend fun getAllActiveIds(): List<Long>

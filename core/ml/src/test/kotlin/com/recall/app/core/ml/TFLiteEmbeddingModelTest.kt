@@ -37,10 +37,11 @@ class TFLiteEmbeddingModelTest {
     }
 
     @Test
-    fun mlModule_fallsBackToMockWhenModelMissing() {
+    fun mlModule_reportsUnavailableWhenRealModelMissing() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val model = MlModule.provideEmbeddingModel(context, ModelProfile.LITE)
-        assertTrue(model is MockEmbeddingModel)
+        assertTrue(model is UnavailableEmbeddingModel)
+        assertTrue(model.initializationError?.contains("could not be loaded") == true)
         assertEquals(ModelProfile.LITE.dimensions, model.dimensions)
         assertEquals(ModelProfile.LITE.name, model.profileName)
     }

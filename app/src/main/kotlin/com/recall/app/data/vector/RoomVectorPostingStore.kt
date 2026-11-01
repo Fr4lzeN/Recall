@@ -31,8 +31,9 @@ class RoomVectorPostingStore(
     }
 
     override suspend fun deleteByMediaItems(mediaItemIds: List<Long>) {
-        if (mediaItemIds.isNotEmpty()) {
-            postingDao.deleteByMediaItems(mediaItemIds)
+        // Older Android SQLite versions allow at most 999 bound parameters per statement.
+        for (batch in mediaItemIds.chunked(800)) {
+            postingDao.deleteByMediaItems(batch)
         }
     }
 

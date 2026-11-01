@@ -141,6 +141,29 @@ class MediaItemDaoTest {
         assertEquals(setOf(1L, 2L), activeIds.toSet())
     }
 
+    @Test
+    fun markAllUnindexedClearsIncompatibleVectorLocations() = runTest {
+        dao.upsertAll(listOf(sampleMediaItem(1L, isIndexed = true)))
+        dao.markIndexed(1L, true, 4, 8L, 12)
+        dao.markAllUnindexed()
+        val item = dao.getById(1L)!!
+        assertFalse(item.isIndexed)
+        assertEquals(null, item.embeddingVersion)
+        assertEquals(null, item.segmentId)
+        assertEquals(null, item.localVectorIndex)
+        assertEquals("photo_1.jpg", item.displayName)
+    }
+
+    @Test
+    fun diagnosticsCanDistinguishDeletedRowsFromMissingMetadata() = runTest {
+        dao.upsertAll(listOf(sampleMediaItem(1L), sampleMediaItem(2L, isDeleted = true)))
+        assertEquals(listOf(1L), dao.getByIds(listOf(1L, 2L, 3L)).map { it.id })
+        val diagnostics = dao.getByIdsIncludingDeleted(listOf(1L, 2L, 3L)).associateBy { it.id }
+        assertEquals(setOf(1L, 2L), diagnostics.keys)
+        assertTrue(diagnostics.getValue(2L).isDeleted)
+        assertFalse(diagnostics.containsKey(3L))
+    }
+
     private fun sampleMediaItem(
         id: Long,
         displayName: String = "photo_$id.jpg",

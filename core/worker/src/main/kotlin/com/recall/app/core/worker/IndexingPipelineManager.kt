@@ -9,8 +9,13 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.recall.app.core.database.dao.AppSettingDao
+import com.recall.app.core.database.entity.AppSettingEntity
+import com.recall.app.core.ml.EmbeddingModel
+import com.recall.app.core.vector.VectorIndex
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,6 +24,9 @@ import javax.inject.Singleton
 class IndexingPipelineManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val appSettingDao: AppSettingDao,
+    private val vectorIndex: VectorIndex,
+    private val embeddingModel: EmbeddingModel,
+    private val indexResetter: IndexResetter,
 ) {
     private val workManager = WorkManager.getInstance(context)
 
@@ -60,9 +68,19 @@ class IndexingPipelineManager @Inject constructor(
     }
 
     suspend fun startFullReindex() {
-        appSettingDao.delete(AppSettingsKeys.LAST_MEDIA_SCAN_TIMESTAMP)
-        workManager.cancelUniqueWork(UNIQUE_INDEX_PIPELINE)
+        appSettingDao.set(AppSettingEntity(AppSettingsKeys.FORCE_REINDEX, "true"))
+        cancelIndexingAndWait()
         startFullIndexing()
+    }
+
+    suspend fun clearIndex() {
+        cancelIndexingAndWait()
+        indexResetter.reset(vectorIndex, embeddingModel.modelId.takeIf { embeddingModel.initializationError == null })
+        appSettingDao.delete(AppSettingsKeys.FORCE_REINDEX)
+    }
+
+    private suspend fun cancelIndexingAndWait() = withContext(Dispatchers.IO) {
+        workManager.cancelUniqueWork(UNIQUE_INDEX_PIPELINE).result.get()
     }
 
     fun startPeriodicScan() {

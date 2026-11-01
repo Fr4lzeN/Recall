@@ -1,6 +1,8 @@
 package com.recall.app.feature.settings
 
 import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Android
 import androidx.compose.material.icons.outlined.ChevronRight
@@ -23,7 +26,6 @@ import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SdStorage
-import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Button
@@ -35,6 +37,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -67,8 +71,16 @@ fun SettingsScreen(
     val totalMedia by viewModel.totalMedia.collectAsStateWithLifecycle()
     val indexedMedia by viewModel.indexedMedia.collectAsStateWithLifecycle()
     val isIndexing by viewModel.isIndexing.collectAsStateWithLifecycle()
+    val indexingError by viewModel.indexingError.collectAsStateWithLifecycle()
     val exclusionStats by viewModel.exclusionStats.collectAsStateWithLifecycle()
+    val diagnosticsEnabled by viewModel.diagnosticsEnabled.collectAsStateWithLifecycle()
+    val diagnosticAction by viewModel.diagnosticAction.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val exportDiagnostics = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/zip"),
+    ) { destination ->
+        destination?.let(viewModel::exportDiagnostics)
+    }
 
     LaunchedEffect(Unit) {
         viewModel.refreshExclusionStats()
@@ -196,24 +208,99 @@ fun SettingsScreen(
 
             item { SettingsSectionDivider() }
 
+            if (indexingError != null) {
+                item {
+                    SettingsRow(
+                        icon = Icons.Outlined.Info,
+                        headline = "Indexing could not finish",
+                        supporting = indexingError.orEmpty(),
+                    )
+                }
+            }
+
             item {
                 SettingsSectionHeader(title = "Model Profile")
             }
             item {
                 SettingsRow(
                     icon = Icons.Outlined.Tune,
-                    headline = viewModel.activeProfile.name,
-                    supporting = "${viewModel.activeProfile.dimensions} dimensions · " +
-                        viewModel.activeProfile.quantization.name,
+                    headline = "Execution profile: ${viewModel.modelProfileName}",
+                    supporting = viewModel.modelStatus,
                 )
             }
+
+            item { SettingsSectionDivider() }
+
             item {
-                SettingsRow(
-                    icon = Icons.Outlined.SmartToy,
-                    headline = "Model files",
-                    supporting = "Image: ${viewModel.activeProfile.imageModelFileName}" +
-                        (viewModel.activeProfile.textModelFileName?.let { "\nText: $it" } ?: ""),
-                )
+                SettingsSectionHeader(title = "Search Diagnostics")
+            }
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .toggleable(
+                            value = diagnosticsEnabled,
+                            enabled = !diagnosticAction.isWorking,
+                            role = Role.Switch,
+                            onValueChange = viewModel::setDiagnosticsEnabled,
+                        )
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Record searches", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            text = "Save search queries, image references and vectors on this device.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
+                    Switch(
+                        checked = diagnosticsEnabled,
+                        onCheckedChange = null,
+                        enabled = !diagnosticAction.isWorking,
+                    )
+                }
+            }
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            exportDiagnostics.launch("recall-search-diagnostics-${System.currentTimeMillis()}.zip")
+                        },
+                        enabled = !diagnosticAction.isWorking,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Export search diagnostics")
+                    }
+                    OutlinedButton(
+                        onClick = viewModel::clearDiagnostics,
+                        enabled = !diagnosticAction.isWorking,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Clear saved diagnostics")
+                    }
+                    val actionMessage = when {
+                        diagnosticAction.isWorking -> "Updating diagnostics…"
+                        diagnosticAction.error != null -> diagnosticAction.error
+                        else -> diagnosticAction.message
+                    }
+                    if (actionMessage != null) {
+                        Text(
+                            text = actionMessage,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (diagnosticAction.error != null) MaterialTheme.colorScheme.error
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
 
             item { SettingsSectionDivider() }

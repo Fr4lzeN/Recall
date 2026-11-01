@@ -21,7 +21,8 @@ interface IndexingJobDao {
 
     @Query(
         "UPDATE indexing_jobs SET status = :status, updated_at = :updatedAt, " +
-            "error_message = :error, retry_count = retry_count + 1 WHERE id = :id",
+            "error_message = :error, " +
+            "retry_count = retry_count + CASE WHEN :status = 'FAILED' THEN 1 ELSE 0 END WHERE id = :id",
     )
     suspend fun updateStatus(
         id: Long,
@@ -35,6 +36,9 @@ interface IndexingJobDao {
 
     @Query("DELETE FROM indexing_jobs WHERE status = 'COMPLETED'")
     suspend fun deleteCompleted()
+
+    @Query("DELETE FROM indexing_jobs")
+    suspend fun deleteAll()
 
     @Query("DELETE FROM indexing_jobs WHERE media_item_id IN (:mediaItemIds)")
     suspend fun deleteByMediaItemIds(mediaItemIds: List<Long>)

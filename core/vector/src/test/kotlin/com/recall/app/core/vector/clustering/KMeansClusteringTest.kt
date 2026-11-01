@@ -1,6 +1,7 @@
 package com.recall.app.core.vector.clustering
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.sqrt
@@ -53,10 +54,37 @@ class KMeansClusteringTest {
 
     @Test
     fun suggestK_returnsValuesInRange() {
-        assertEquals(3, KMeansClustering.suggestK(1))
+        assertEquals(0, KMeansClustering.suggestK(0))
+        assertEquals(1, KMeansClustering.suggestK(1))
         assertEquals(3, KMeansClustering.suggestK(10))
-        assertEquals(5, KMeansClustering.suggestK(50))
-        assertEquals(12, KMeansClustering.suggestK(500))
+        assertEquals(7, KMeansClustering.suggestK(50))
+        assertTrue(KMeansClustering.suggestK(600) > 12)
+    }
+
+    @Test
+    fun automaticClustering_selectsThreeSeparatedGroups() {
+        val result = KMeansClustering.clusterAutomatically(buildSeparatedClusters())
+        assertEquals(3, result.size)
+        assertEquals(setOf(setOf(1L, 2L), setOf(3L, 4L), setOf(5L, 6L)),
+            result.map { it.memberIds.toSet() }.toSet())
+    }
+
+    @Test
+    fun automaticClustering_doesNotForceSeveralGroupsForIdenticalVectors() {
+        val items = List(600) { it.toLong() to floatArrayOf(1f, 0f, 0f) }
+        val result = KMeansClustering.clusterAutomatically(items)
+        assertEquals(1, result.size)
+        assertEquals(600, result.single().memberIds.size)
+    }
+
+    @Test
+    fun automaticClustering_doesNotForceTwelveGroupsForSixHundredItems() {
+        val items = List(600) { id ->
+            id.toLong() to FloatArray(3) { dimension -> if (id / 200 == dimension) 1f else 0f }
+        }
+        val result = KMeansClustering.clusterAutomatically(items)
+        assertEquals(3, result.size)
+        assertTrue(result.all { it.memberIds.size == 200 })
     }
 
     @Test
@@ -72,6 +100,39 @@ class KMeansClusteringTest {
                 assertEquals(a.centroid[i], b.centroid[i], 1e-5f)
             }
         }
+    }
+
+    @Test(timeout = 2000)
+    fun convergedCluster_stopsBeforeLargeIterationLimit() {
+        val result = KMeansClustering.cluster(
+            buildSeparatedClusters(), k = 1, maxIterations = Int.MAX_VALUE, restarts = 1,
+        )
+        assertEquals(1, result.size)
+        assertEquals(6, result.single().memberIds.size)
+    }
+
+    @Test
+    fun automaticClustering_propagatesCancellationDuringSampling() {
+        var checkpoints = 0
+        assertThrows(kotlinx.coroutines.CancellationException::class.java) {
+            KMeansClustering.clusterAutomatically(buildSeparatedClusters(), checkCancellation = {
+                checkpoints++
+                if (checkpoints == 4) throw kotlinx.coroutines.CancellationException("Cancelled")
+            })
+        }
+        assertEquals(4, checkpoints)
+    }
+
+    @Test
+    fun clustering_propagatesCancellationDuringIterations() {
+        var checkpoints = 0
+        assertThrows(kotlinx.coroutines.CancellationException::class.java) {
+            KMeansClustering.cluster(buildSeparatedClusters(), k = 3, checkCancellation = {
+                checkpoints++
+                if (checkpoints == 5) throw kotlinx.coroutines.CancellationException("Cancelled")
+            })
+        }
+        assertEquals(5, checkpoints)
     }
 
     private fun buildSeparatedClusters(): List<Pair<Long, FloatArray>> {

@@ -2,9 +2,21 @@ package com.recall.app.core.ml.tokenizer
 
 import android.content.Context
 import java.io.BufferedReader
+import java.io.FileNotFoundException
+import java.io.InputStream
 import java.io.InputStreamReader
 import java.util.regex.Pattern
 import java.util.zip.GZIPInputStream
+import java.util.concurrent.ConcurrentHashMap
+import java.util.Locale
+
+data class ClipTokenizationDiagnostics(
+    val normalizedText: String,
+    val tokenIds: IntArray,
+    val tokenPieces: List<String>,
+    val originalTokenCount: Int,
+    val truncated: Boolean,
+)
 
 /**
  * Kotlin port of OpenAI CLIP's simple BPE tokenizer.
@@ -16,20 +28,45 @@ import java.util.zip.GZIPInputStream
  */
 class ClipBpeTokenizer private constructor(
     private val encoder: Map<String, Int>,
-    private val decoder: Map<Int, String>,
     private val bpeRanks: Map<Pair<String, String>, Int>,
     private val byteEncoder: Map<Byte, Char>,
     private val contextLength: Int,
 ) {
-    private val cache = HashMap<String, String>()
+    private val cache = ConcurrentHashMap<String, String>()
+    private val decoder by lazy { encoder.entries.associate { (piece, id) -> id to piece } }
     private val pattern: Pattern = Pattern.compile(
         "'s|'t|'re|'ve|'m|'ll|'d|[\\p{L}]+|[\\p{N}]|[^\\s\\p{L}\\p{N}]+",
         Pattern.CASE_INSENSITIVE,
     )
 
-    fun encode(text: String): IntArray {
+    fun encode(text: String): IntArray = pack(tokenize(text).tokenIds)
+
+    fun encodeWithDiagnostics(text: String): ClipTokenizationDiagnostics {
+        val tokenization = tokenize(text)
+        val tokenIds = pack(tokenization.tokenIds)
+        val endIndex = minOf(tokenization.tokenIds.size, contextLength - 2) + 1
+        val pieces = tokenIds.mapIndexed { position, id ->
+            when {
+                position == 0 -> "<SOT>"
+                position == endIndex -> "<EOT>"
+                position > endIndex -> "<PAD>"
+                else -> decoder[id] ?: "<UNKNOWN:$id>"
+            }
+        }
+        return ClipTokenizationDiagnostics(
+            normalizedText = tokenization.normalizedText,
+            tokenIds = tokenIds,
+            tokenPieces = pieces,
+            originalTokenCount = tokenization.tokenIds.size,
+            truncated = tokenization.tokenIds.size > contextLength - 2,
+        )
+    }
+
+    private data class Tokenization(val normalizedText: String, val tokenIds: List<Int>)
+
+    private fun tokenize(text: String): Tokenization {
         val bpeTokens = mutableListOf<Int>()
-        val cleanedText = text.lowercase().trim()
+        val cleanedText = text.lowercase(Locale.ROOT).trim()
         val matcher = pattern.matcher(cleanedText)
 
         while (matcher.find()) {
@@ -47,6 +84,10 @@ class ClipBpeTokenizer private constructor(
             }
         }
 
+        return Tokenization(cleanedText, bpeTokens)
+    }
+
+    private fun pack(bpeTokens: List<Int>): IntArray {
         val result = IntArray(contextLength)
         result[0] = SOT_TOKEN
         val maxBpeTokens = contextLength - 2
@@ -129,27 +170,52 @@ class ClipBpeTokenizer private constructor(
         const val SOT_TOKEN = 49406
         const val EOT_TOKEN = 49407
         private const val END_WORD = "</w>"
-        private const val VOCAB_ASSET = "tokenizer/bpe_simple_vocab_16e6.txt.gz"
+        internal const val VOCAB_ASSET_GZIP = "tokenizer/bpe_simple_vocab_16e6.txt.gz"
+        internal const val VOCAB_ASSET_PLAIN = "tokenizer/bpe_simple_vocab_16e6.txt"
         private const val DEFAULT_CONTEXT_LENGTH = 77
+        internal const val MERGE_COUNT = 48894
 
         fun create(context: Context, contextLength: Int = DEFAULT_CONTEXT_LENGTH): ClipBpeTokenizer {
-            val byteEncoder = buildByteEncoder()
-            val (encoder, bpeRanks) = loadVocab(context, byteEncoder)
-            val decoder = encoder.entries.associate { (k, v) -> v to k }
-            return ClipBpeTokenizer(encoder, decoder, bpeRanks, byteEncoder, contextLength)
-        }
-
-        private fun loadVocab(
-            context: Context,
-            byteEncoder: Map<Byte, Char>,
-        ): Pair<Map<String, Int>, Map<Pair<String, String>, Int>> {
-            val lines = context.assets.open(VOCAB_ASSET).use { raw ->
-                GZIPInputStream(raw).use { gzip ->
-                    BufferedReader(InputStreamReader(gzip, Charsets.UTF_8)).readLines()
-                }
+            val lines = openVocabulary(context).use { stream ->
+                BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).readLines()
             }
 
-            val mergeLines = lines.subList(1, 48895 + 1)
+            return fromVocabularyLines(lines, contextLength)
+        }
+
+        internal fun openVocabulary(context: Context): InputStream =
+            openVocabulary { name -> context.assets.open(name) }
+
+        internal fun openVocabulary(openAsset: (String) -> InputStream): InputStream {
+            // AAPT can unpack .gz assets and package the same vocabulary as .txt.
+            val compressed = try {
+                openAsset(VOCAB_ASSET_GZIP)
+            } catch (_: FileNotFoundException) {
+                return openAsset(VOCAB_ASSET_PLAIN)
+            }
+            return try {
+                GZIPInputStream(compressed)
+            } catch (error: Throwable) {
+                runCatching { compressed.close() }
+                throw error
+            }
+        }
+
+        internal fun fromVocabularyLines(
+            lines: List<String>,
+            contextLength: Int = DEFAULT_CONTEXT_LENGTH,
+        ): ClipBpeTokenizer {
+            require(lines.size >= MERGE_COUNT + 1) { "CLIP BPE vocabulary is incomplete" }
+            return fromMerges(lines.subList(1, MERGE_COUNT + 1), contextLength)
+        }
+
+        internal fun fromMerges(
+            mergeLines: List<String>,
+            contextLength: Int = DEFAULT_CONTEXT_LENGTH,
+        ): ClipBpeTokenizer {
+            require(contextLength >= 2) { "CLIP context length must fit start and end tokens" }
+            require(mergeLines.size <= MERGE_COUNT) { "Too many CLIP BPE merges" }
+            val byteEncoder = buildByteEncoder()
 
             val encoder = HashMap<String, Int>(49408)
 
@@ -164,20 +230,20 @@ class ClipBpeTokenizer private constructor(
             val bpeRanks = HashMap<Pair<String, String>, Int>(mergeLines.size)
             for ((rank, line) in mergeLines.withIndex()) {
                 val parts = line.split(" ")
-                if (parts.size == 2) {
-                    vocabTokens.add(parts[0] + parts[1])
-                    bpeRanks[parts[0] to parts[1]] = rank
+                require(parts.size == 2 && parts.all { it.isNotEmpty() }) {
+                    "Invalid CLIP BPE merge at line ${rank + 2}"
                 }
+                vocabTokens.add(parts[0] + parts[1])
+                bpeRanks[parts[0] to parts[1]] = rank
             }
-
-            vocabTokens.add("<|startoftext|>")
-            vocabTokens.add("<|endoftext|>")
 
             for ((idx, token) in vocabTokens.withIndex()) {
                 encoder[token] = idx
             }
 
-            return encoder to bpeRanks
+            encoder["<|startoftext|>"] = SOT_TOKEN
+            encoder["<|endoftext|>"] = EOT_TOKEN
+            return ClipBpeTokenizer(encoder, bpeRanks, byteEncoder, contextLength)
         }
 
         private fun buildByteEncoder(): Map<Byte, Char> {
@@ -197,7 +263,7 @@ class ClipBpeTokenizer private constructor(
                 }
             }
 
-            val result = HashMap<Byte, Char>(256)
+            val result = LinkedHashMap<Byte, Char>(256)
             for (i in bs.indices) {
                 result[bs[i].toByte()] = cs[i].toChar()
             }

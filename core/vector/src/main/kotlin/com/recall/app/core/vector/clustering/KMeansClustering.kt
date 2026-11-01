@@ -14,46 +14,124 @@ object KMeansClustering {
     private const val RANDOM_SEED = 42L
 
     fun suggestK(itemCount: Int): Int {
-        if (itemCount <= 0) return 3
-        val raw = sqrt(itemCount / 2.0).toInt()
-        return raw.coerceIn(3, 12)
+        if (itemCount <= 1) return itemCount.coerceAtLeast(0)
+        return sqrt(itemCount.toDouble()).toInt().coerceIn(2, 32).coerceAtMost(itemCount)
+    }
+
+    fun clusterAutomatically(
+        items: List<Pair<Long, FloatArray>>,
+        maxClusters: Int = 32,
+        minSilhouette: Float = 0.2f,
+        checkCancellation: () -> Unit = {},
+    ): List<Cluster> {
+        checkCancellation()
+        if (items.size < 3 || maxClusters < 2) return cluster(items, k = 1, checkCancellation = checkCancellation)
+        val sample = items.shuffled(Random(RANDOM_SEED)).take(160)
+        val distances = Array(sample.size) { FloatArray(sample.size) }
+        var maxDistance = 0f
+        for (i in sample.indices) {
+            checkCancellation()
+            for (j in 0 until i) {
+                val distance = cosineDistance(sample[i].second, sample[j].second).coerceAtLeast(0f)
+                distances[i][j] = distance
+                distances[j][i] = distance
+                maxDistance = maxOf(maxDistance, distance)
+            }
+        }
+        if (maxDistance < 1e-4f) return cluster(items, k = 1, checkCancellation = checkCancellation)
+
+        val limit = minOf(maxClusters, sample.size / 2)
+        val candidates = (listOf(2, 3, 4, 6, 8, 12, 16, 24, 32) + limit)
+            .filter { it in 2..limit }.distinct().sorted()
+        var selectedK = 1
+        var bestScore = minSilhouette
+        for (k in candidates) {
+            checkCancellation()
+            val clusters = cluster(sample, k, restarts = 1, checkCancellation = checkCancellation)
+            if (clusters.size < 2) continue
+            val groupById = clusters.flatMapIndexed { group, c -> c.memberIds.map { it to group } }.toMap()
+            val assignments = IntArray(sample.size) { groupById.getValue(sample[it].first) }
+            val counts = IntArray(clusters.size)
+            assignments.forEach { counts[it]++ }
+            var total = 0f
+            for (i in sample.indices) {
+                if (i % 32 == 0) checkCancellation()
+                val group = assignments[i]
+                if (counts[group] == 1) continue
+                val sums = FloatArray(clusters.size)
+                for (j in sample.indices) sums[assignments[j]] += distances[i][j]
+                val ownDistance = sums[group] / (counts[group] - 1)
+                val otherDistance = sums.indices.filter { it != group }
+                    .minOf { sums[it] / counts[it] }
+                val denominator = maxOf(ownDistance, otherDistance)
+                if (denominator > 0f) total += (otherDistance - ownDistance) / denominator
+            }
+            val score = total / sample.size
+            if (score > bestScore + 1e-4f) {
+                bestScore = score
+                selectedK = clusters.size
+            }
+        }
+        return cluster(items, selectedK, checkCancellation = checkCancellation)
     }
 
     fun cluster(
         items: List<Pair<Long, FloatArray>>,
         k: Int,
         maxIterations: Int = DEFAULT_MAX_ITERATIONS,
+        restarts: Int = 3,
+        checkCancellation: () -> Unit = {},
     ): List<Cluster> {
+        checkCancellation()
         if (items.isEmpty()) return emptyList()
         if (k <= 0) return emptyList()
+        require(maxIterations > 0) { "maxIterations must be positive" }
+        require(restarts > 0) { "restarts must be positive" }
+        val dimensions = items.first().second.size
+        require(dimensions > 0 && items.all { it.second.size == dimensions })
+        require(items.all { (_, vector) -> vector.all { it.isFinite() } })
         val effectiveK = minOf(k, items.size)
-        val vectors = items.map { (_, vector) -> normalize(vector.copyOf()) }
+        val vectors = items.mapIndexed { index, (_, vector) ->
+            if (index % 32 == 0) checkCancellation()
+            normalize(vector.copyOf())
+        }
         val ids = items.map { it.first }
 
-        var centroids = initializeCentroidsKMeansPlusPlus(vectors, effectiveK)
-        var assignments = IntArray(items.size)
-
-        repeat(maxIterations) {
-            var changed = false
-            for (i in vectors.indices) {
-                val nearest = nearestCentroid(vectors[i], centroids)
-                if (assignments[i] != nearest) {
-                    assignments[i] = nearest
-                    changed = true
+        var bestClusters = emptyList<Cluster>()
+        var bestLoss = Float.POSITIVE_INFINITY
+        repeat(restarts) { restart ->
+            checkCancellation()
+            var centroids = initializeCentroidsKMeansPlusPlus(vectors, effectiveK, RANDOM_SEED + restart)
+            val assignments = IntArray(items.size) { -1 }
+            for (iteration in 0 until maxIterations) {
+                checkCancellation()
+                var changed = false
+                for (i in vectors.indices) {
+                    if (i % 32 == 0) checkCancellation()
+                    val nearest = nearestCentroid(vectors[i], centroids)
+                    if (assignments[i] != nearest) {
+                        assignments[i] = nearest
+                        changed = true
+                    }
                 }
+                centroids = recomputeCentroids(vectors, assignments, effectiveK, centroids)
+                if (!changed) break
             }
-            centroids = recomputeCentroids(vectors, assignments, effectiveK, centroids)
-            if (!changed) return@repeat
+            val loss = vectors.indices.sumOf { i -> cosineDistance(vectors[i], centroids[assignments[i]]).toDouble() }.toFloat()
+            if (loss < bestLoss) {
+                bestLoss = loss
+                bestClusters = buildClusters(ids, assignments, centroids, effectiveK)
+            }
         }
-
-        return buildClusters(ids, assignments, centroids, effectiveK)
+        return bestClusters
     }
 
     private fun initializeCentroidsKMeansPlusPlus(
         vectors: List<FloatArray>,
         k: Int,
+        seed: Long,
     ): List<FloatArray> {
-        val random = Random(RANDOM_SEED)
+        val random = Random(seed)
         val centroids = mutableListOf<FloatArray>()
         centroids.add(vectors[random.nextInt(vectors.size)].copyOf())
 

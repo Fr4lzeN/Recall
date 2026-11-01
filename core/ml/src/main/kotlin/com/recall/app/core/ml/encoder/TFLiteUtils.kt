@@ -9,6 +9,7 @@ import org.tensorflow.lite.gpu.GpuDelegate
 import org.tensorflow.lite.nnapi.NnApiDelegate
 import java.io.FileInputStream
 import java.nio.MappedByteBuffer
+import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 import kotlin.math.sqrt
 
@@ -59,6 +60,22 @@ internal object TFLiteUtils {
         }
 
         return options to delegates
+    }
+
+    fun openInterpreter(buffer: ByteBuffer, profile: ModelProfile): Pair<Interpreter, List<AutoCloseable>> {
+        val (options, delegates) = createInterpreterOptions(profile)
+        try {
+            return Interpreter(buffer, options) to delegates
+        } catch (error: Exception) {
+            delegates.asReversed().forEach { runCatching { it.close() } }
+            if (delegates.isEmpty()) throw error
+        } catch (error: LinkageError) {
+            delegates.asReversed().forEach { runCatching { it.close() } }
+            if (delegates.isEmpty()) throw error
+        }
+        val cpuOptions = Interpreter.Options()
+            .setNumThreads(Runtime.getRuntime().availableProcessors().coerceIn(1, 4))
+        return Interpreter(buffer, cpuOptions) to emptyList()
     }
 
     enum class InputLayout { NHWC, NCHW }
