@@ -1,9 +1,12 @@
 package com.recall.app.di
 
 import android.content.Context
+import com.recall.app.core.database.dao.AppSettingDao
 import com.recall.app.core.database.dao.VectorPostingDao
 import com.recall.app.core.database.dao.VectorSegmentDao
 import com.recall.app.core.ml.EmbeddingModel
+import com.recall.app.core.worker.AppSettingsKeys
+import com.recall.app.core.worker.IndexResetter
 import com.recall.app.core.vector.PersistableVectorIndex
 import com.recall.app.core.vector.VectorIndex
 import com.recall.app.core.vector.segment.SegmentManifest
@@ -42,15 +45,23 @@ object VectorModule {
         embeddingModel: EmbeddingModel,
         manifest: SegmentManifest,
         postingStore: VectorPostingStore,
+        appSettingDao: AppSettingDao,
+        indexResetter: IndexResetter,
     ): VectorIndex {
         val segmentsDir = File(context.filesDir, "vector_segments")
         return runBlocking {
-            SegmentedVectorIndex.open(
+            val index = SegmentedVectorIndex.open(
                 dimensions = embeddingModel.dimensions,
                 segmentsDir = segmentsDir,
                 manifest = manifest,
                 postingStore = postingStore,
             )
+            if (embeddingModel.initializationError == null &&
+                appSettingDao.getValue(AppSettingsKeys.EMBEDDING_MODEL_ID) != embeddingModel.modelId
+            ) {
+                indexResetter.reset(index, embeddingModel.modelId)
+            }
+            index
         }
     }
 

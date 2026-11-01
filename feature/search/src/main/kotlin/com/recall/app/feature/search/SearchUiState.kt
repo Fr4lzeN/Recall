@@ -7,6 +7,7 @@ data class SearchUiState(
     val indexedCount: Int = 0,
     val totalCount: Int = 0,
     val error: String? = null,
+    val minSimilarity: Float = SearchResultSelection.DEFAULT_MIN_SIMILARITY,
 )
 
 data class SearchResultItem(

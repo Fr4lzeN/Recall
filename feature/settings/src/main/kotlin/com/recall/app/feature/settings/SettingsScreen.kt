@@ -67,6 +67,7 @@ fun SettingsScreen(
     val totalMedia by viewModel.totalMedia.collectAsStateWithLifecycle()
     val indexedMedia by viewModel.indexedMedia.collectAsStateWithLifecycle()
     val isIndexing by viewModel.isIndexing.collectAsStateWithLifecycle()
+    val indexingError by viewModel.indexingError.collectAsStateWithLifecycle()
     val exclusionStats by viewModel.exclusionStats.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
@@ -196,15 +197,24 @@ fun SettingsScreen(
 
             item { SettingsSectionDivider() }
 
+            if (indexingError != null) {
+                item {
+                    SettingsRow(
+                        icon = Icons.Outlined.Info,
+                        headline = "Indexing could not finish",
+                        supporting = indexingError.orEmpty(),
+                    )
+                }
+            }
+
             item {
                 SettingsSectionHeader(title = "Model Profile")
             }
             item {
                 SettingsRow(
                     icon = Icons.Outlined.Tune,
-                    headline = viewModel.activeProfile.name,
-                    supporting = "${viewModel.activeProfile.dimensions} dimensions · " +
-                        viewModel.activeProfile.quantization.name,
+                    headline = "Execution profile: ${viewModel.modelProfileName}",
+                    supporting = viewModel.modelStatus,
                 )
             }
             item {

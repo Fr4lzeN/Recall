@@ -150,6 +150,18 @@ class HnswIndexTest {
         assertTrue(factoryIndex is HnswIndex)
     }
 
+    @Test
+    fun insertingDistantNode_prunesExistingLinksAroundTheirOwnVector() = runTest {
+        val graph = HnswIndex(dimensions = 2, m = 2)
+        val angles = listOf(0.0, -5.0, 5.0, -10.0, 10.0, 90.0)
+        angles.forEachIndexed { id, degrees ->
+            val radians = Math.toRadians(degrees)
+            graph.add(id.toLong(), floatArrayOf(kotlin.math.cos(radians).toFloat(), kotlin.math.sin(radians).toFloat()))
+        }
+        val neighbors = graph.exportForSegment(angles.size).neighborsByLayer[0][0].toSet()
+        assertEquals(setOf(1, 2, 3, 4), neighbors)
+    }
+
     private fun normalize(vector: FloatArray): FloatArray {
         val norm = sqrt(vector.fold(0f) { acc, v -> acc + v * v })
         return FloatArray(vector.size) { i -> vector[i] / norm }

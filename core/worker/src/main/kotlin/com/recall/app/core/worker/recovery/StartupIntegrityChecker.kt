@@ -47,7 +47,7 @@ class StartupIntegrityChecker @Inject constructor(
     }
 
     private fun cleanOrphanedTempFiles(): Int {
-        val segmentsDir = File(context.filesDir, "segments")
+        val segmentsDir = File(context.filesDir, "vector_segments")
         if (!segmentsDir.exists()) return 0
         val tempFiles = segmentsDir.listFiles { f -> f.name.endsWith(".tmp") } ?: return 0
         tempFiles.forEach { it.delete() }
@@ -55,7 +55,7 @@ class StartupIntegrityChecker @Inject constructor(
     }
 
     private fun verifySegmentsDirectory() {
-        val segmentsDir = File(context.filesDir, "segments")
+        val segmentsDir = File(context.filesDir, "vector_segments")
         Log.i(TAG, "Segments directory exists: ${segmentsDir.exists()}")
     }
 

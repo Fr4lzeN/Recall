@@ -135,6 +135,27 @@ class IndexingJobDaoTest {
         assertEquals(1, jobDao.getByStatus(IndexingStatus.PENDING, limit = 10).size)
     }
 
+    @Test
+    fun successfulStatusTransitionsDoNotConsumeRetryBudget() = runTest {
+        mediaDao.upsertAll(listOf(sampleMediaItem(1L)))
+        jobDao.insertAll(listOf(sampleJob(1L, IndexingStatus.PENDING)))
+        val id = jobDao.getByStatus(IndexingStatus.PENDING, 1).single().id
+        jobDao.updateStatus(id, IndexingStatus.PROCESSING, 1L)
+        jobDao.updateStatus(id, IndexingStatus.COMPLETED, 2L)
+        assertEquals(0, jobDao.getByStatus(IndexingStatus.COMPLETED, 1).single().retryCount)
+    }
+
+    @Test
+    fun deleteAllClearsPendingAndCompletedJobsForReindex() = runTest {
+        mediaDao.upsertAll(listOf(sampleMediaItem(1L), sampleMediaItem(2L)))
+        jobDao.insertAll(listOf(sampleJob(1L, IndexingStatus.PENDING), sampleJob(2L, IndexingStatus.COMPLETED)))
+        jobDao.deleteAll()
+        IndexingStatus.entries.forEach { status ->
+            assertTrue(jobDao.getByStatus(status, 10).isEmpty())
+        }
+        assertEquals(2, mediaDao.getAllActiveIds().size)
+    }
+
     private fun sampleMediaItem(id: Long) = MediaItemEntity(
         id = id,
         uri = "content://media/$id",

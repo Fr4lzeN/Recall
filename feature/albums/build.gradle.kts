@@ -12,4 +12,5 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:ml"))
     implementation(project(":core:vector"))
+    testImplementation(libs.junit)
 }

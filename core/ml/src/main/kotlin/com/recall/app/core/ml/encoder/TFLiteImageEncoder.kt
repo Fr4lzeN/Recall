@@ -15,14 +15,18 @@ class TFLiteImageEncoder(
 
     fun embed(bitmap: Bitmap): FloatArray {
         val preprocessed = ImagePreprocessor.preprocess(bitmap, profile.inputImageSize)
-        val normalization = if (profile.useSimpleNormalization) {
-            ImagePreprocessor.Normalization.SIMPLE
-        } else {
-            ImagePreprocessor.Normalization.CLIP_IMAGENET
+        return try {
+            val normalization = if (profile.useSimpleNormalization) {
+                ImagePreprocessor.Normalization.SIMPLE
+            } else {
+                ImagePreprocessor.Normalization.CLIP_IMAGENET
+            }
+            val pixels = ImagePreprocessor.bitmapToFloatArray(preprocessed, normalization)
+            val input = packInput(pixels, preprocessed.width, preprocessed.height)
+            runInference(input)
+        } finally {
+            if (preprocessed !== bitmap) preprocessed.recycle()
         }
-        val pixels = ImagePreprocessor.bitmapToFloatArray(preprocessed, normalization)
-        val input = packInput(pixels, preprocessed.width, preprocessed.height)
-        return runInference(input)
     }
 
     fun close() {

@@ -49,3 +49,7 @@ out/
 *.keystore
 *.jks
 google-services.json
+
+# Python conversion checks
+__pycache__/
+*.py[cod]

@@ -6,6 +6,8 @@ import com.recall.app.core.ml.MockEmbeddingModel
 import com.recall.app.core.ml.ModelProfile
 import com.recall.app.core.ml.ModelProfileSelector
 import com.recall.app.core.ml.TFLiteEmbeddingModel
+import com.recall.app.core.ml.UnavailableEmbeddingModel
+import kotlinx.coroutines.CancellationException
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -42,8 +44,12 @@ object MlModule {
                 context.assets.open(profile.textModelFileName).close()
             }
             TFLiteEmbeddingModel(context, profile)
-        } catch (_: Exception) {
-            MockEmbeddingModel(profile)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            UnavailableEmbeddingModel(profile, e)
+        } catch (e: LinkageError) {
+            UnavailableEmbeddingModel(profile, IllegalStateException(e.message, e))
         }
     }
 }

@@ -17,22 +17,23 @@ object SegmentHnswSearch {
         require(query.size == reader.dimensions) {
             "Expected ${reader.dimensions} dimensions, got ${query.size}"
         }
+        require(localIndexToMediaId.size == reader.vectorCount)
         if (topK <= 0 || reader.vectorCount == 0 || reader.entryPoint < 0) return emptyList()
 
+        if (deletionBitmap?.liveCount() == 0) return emptyList()
         var currentEp = reader.entryPoint
-        if (deletionBitmap?.isDeleted(currentEp) == true) {
-            currentEp = findLiveEntry(reader, deletionBitmap) ?: return emptyList()
-        }
 
         for (layer in reader.maxLevel downTo 1) {
             currentEp = greedyClosest(reader, deletionBitmap, query, currentEp, layer)
         }
 
-        val ef = maxOf(efSearch, topK * 15)
+        val ef = (maxOf(efSearch.toLong(), topK.toLong() * 15) +
+            (deletionBitmap?.deletedCount() ?: 0)).coerceAtMost(reader.vectorCount.toLong()).toInt()
         val candidates = searchLayer(reader, deletionBitmap, query, setOf(currentEp), ef, layer = 0)
         return candidates
             .asSequence()
             .filter { (localIndex, _) -> deletionBitmap?.isDeleted(localIndex) != true }
+            .filter { (localIndex, _) -> localIndexToMediaId[localIndex] >= 0L }
             .take(topK)
             .map { (localIndex, dist) ->
                 SearchResult(
@@ -42,13 +43,6 @@ object SegmentHnswSearch {
                 )
             }
             .toList()
-    }
-
-    private fun findLiveEntry(reader: SegmentReader, deletionBitmap: DeletionBitmap): Int? {
-        for (i in 0 until reader.vectorCount) {
-            if (!deletionBitmap.isDeleted(i)) return i
-        }
-        return null
     }
 
     private fun searchLayer(
@@ -64,7 +58,6 @@ object SegmentHnswSearch {
         val results = PriorityQueue<ScoredLocal>(compareByDescending { it.distance })
 
         for (ep in entryPoints) {
-            if (deletionBitmap?.isDeleted(ep) == true) continue
             val dist = distance(reader, query, ep)
             candidates.add(ScoredLocal(ep, dist))
             results.add(ScoredLocal(ep, dist))
@@ -79,7 +72,6 @@ object SegmentHnswSearch {
 
             for (neighborId in reader.readNeighbors(nearest.localIndex, layer)) {
                 if (!visited.add(neighborId)) continue
-                if (deletionBitmap?.isDeleted(neighborId) == true) continue
                 val dist = distance(reader, query, neighborId)
                 val worst = results.peek()
                 if (worst == null || dist < worst.distance || results.size < ef) {
@@ -108,7 +100,6 @@ object SegmentHnswSearch {
             var bestId = current
             var bestDist = distance(reader, query, current)
             for (neighborId in reader.readNeighbors(current, layer)) {
-                if (deletionBitmap?.isDeleted(neighborId) == true) continue
                 val dist = distance(reader, query, neighborId)
                 if (dist < bestDist) {
                     bestDist = dist

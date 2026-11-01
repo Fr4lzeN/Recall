@@ -141,6 +141,19 @@ class MediaItemDaoTest {
         assertEquals(setOf(1L, 2L), activeIds.toSet())
     }
 
+    @Test
+    fun markAllUnindexedClearsIncompatibleVectorLocations() = runTest {
+        dao.upsertAll(listOf(sampleMediaItem(1L, isIndexed = true)))
+        dao.markIndexed(1L, true, 4, 8L, 12)
+        dao.markAllUnindexed()
+        val item = dao.getById(1L)!!
+        assertFalse(item.isIndexed)
+        assertEquals(null, item.embeddingVersion)
+        assertEquals(null, item.segmentId)
+        assertEquals(null, item.localVectorIndex)
+        assertEquals("photo_1.jpg", item.displayName)
+    }
+
     private fun sampleMediaItem(
         id: Long,
         displayName: String = "photo_$id.jpg",

@@ -12,6 +12,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +35,7 @@ class AlbumsViewModel @Inject constructor(
     val uiState: StateFlow<AlbumsUiState> = _uiState.asStateFlow()
 
     private var clusteringJob: Job? = null
+    private var cachedConceptEmbeddings: Map<String, FloatArray>? = null
 
     init {
         viewModelScope.launch {
@@ -73,27 +76,49 @@ class AlbumsViewModel @Inject constructor(
     fun getAlbum(index: Int): Album? = _uiState.value.albums.getOrNull(index)
 
     private suspend fun buildAlbums(): List<Album> {
+        val context = currentCoroutineContext()
+        val checkCancellation = { context.ensureActive() }
+        checkCancellation()
+        embeddingModel.initializationError?.let { error(it) }
         val excludedIds = excludedDirectoriesRepository.getExcludedBucketIds()
         val indexedItems = mediaItemDao.getIndexed()
             .filter { it.bucketId.isEmpty() || it.bucketId !in excludedIds }
         val vectors = indexedItems.mapNotNull { item ->
+            checkCancellation()
             vectorIndex.getVector(item.id)?.let { vector -> item.id to vector }
         }
         if (vectors.size < 3) {
             return emptyList()
         }
 
-        val k = KMeansClustering.suggestK(vectors.size)
-        val clusters = KMeansClustering.cluster(vectors, k)
-        val conceptEmbeddings = CONCEPT_LABELS.associate { (label, text) ->
+        val clusters = AlbumGroupingPolicy.withOverlap(
+            clusters = KMeansClustering.clusterAutomatically(vectors, checkCancellation = checkCancellation),
+            vectors = vectors,
+            checkCancellation = checkCancellation,
+        )
+        val conceptEmbeddings = cachedConceptEmbeddings ?: CONCEPT_LABELS.associate { (label, text) ->
+            checkCancellation()
             label to embeddingModel.embedText(text)
-        }
+        }.also { cachedConceptEmbeddings = it }
+        val mediaById = indexedItems.associateBy { it.id }
+        val vectorsById = vectors.toMap()
 
         val rawAlbums = clusters.mapIndexed { index, cluster ->
-            val mediaById = indexedItems.associateBy { it.id }
+            checkCancellation()
             val memberItems = cluster.memberIds.mapNotNull { mediaById[it] }
-            val coverUri = memberItems.firstOrNull()?.uri.orEmpty()
-            val name = nameCluster(cluster.centroid, conceptEmbeddings, index)
+            val coverId = cluster.memberIds.maxByOrNull { id ->
+                checkCancellation()
+                vectorsById[id]?.let { VectorDistance.cosineSimilarity(it, cluster.centroid) } ?: -1f
+            }
+            val coverUri = coverId?.let { mediaById[it]?.uri }
+                ?: memberItems.firstOrNull()?.uri.orEmpty()
+            val name = AlbumGroupingPolicy.name(
+                centroid = cluster.centroid,
+                memberVectors = cluster.memberIds.mapNotNull { vectorsById[it] },
+                conceptEmbeddings = conceptEmbeddings,
+                fallbackName = "Album ${index + 1}",
+                checkCancellation = checkCancellation,
+            )
             Album(
                 index = index,
                 name = name,
@@ -106,27 +131,6 @@ class AlbumsViewModel @Inject constructor(
         return deduplicateNames(rawAlbums)
             .sortedByDescending { it.photoCount }
             .mapIndexed { sortedIndex, album -> album.copy(index = sortedIndex) }
-    }
-
-    private suspend fun nameCluster(
-        centroid: FloatArray,
-        conceptEmbeddings: Map<String, FloatArray>,
-        fallbackIndex: Int,
-    ): String {
-        var bestLabel: String? = null
-        var bestSimilarity = Float.NEGATIVE_INFINITY
-        conceptEmbeddings.forEach { (label, embedding) ->
-            val similarity = VectorDistance.cosineSimilarity(centroid, embedding)
-            if (similarity > bestSimilarity) {
-                bestSimilarity = similarity
-                bestLabel = label
-            }
-        }
-        return if (bestSimilarity >= 0.15f && bestLabel != null) {
-            bestLabel
-        } else {
-            "Album ${fallbackIndex + 1}"
-        }
     }
 
     private fun deduplicateNames(albums: List<Album>): List<Album> {
@@ -144,22 +148,35 @@ class AlbumsViewModel @Inject constructor(
 
     companion object {
         private val CONCEPT_LABELS = listOf(
-            "Sunsets" to "sunset",
-            "Sky & Clouds" to "sky clouds",
-            "Ocean & Water" to "ocean water",
-            "Nature & Forest" to "forest nature green",
-            "Food & Drinks" to "food coffee cake",
-            "Night" to "night dark",
-            "Snow & Winter" to "snow winter",
-            "Flowers" to "flower bloom",
-            "Cats" to "cat kitten",
-            "Dogs" to "dog puppy",
-            "City" to "city building street",
-            "Cars & Roads" to "car road vehicle",
-            "Beach" to "beach sand tropical",
-            "Mountains" to "mountain peak",
-            "People" to "person face portrait",
-            "Autumn" to "autumn leaves fall",
+            "Sunsets" to "a photo of a sunset",
+            "Sky & Clouds" to "a photo of clouds in the sky",
+            "Ocean & Water" to "a photo of the ocean or a lake",
+            "Nature & Forest" to "a photo of a forest",
+            "Food & Drinks" to "a photo of food or a drink",
+            "Night" to "a photo taken at night",
+            "Snow & Winter" to "a photo of snow in winter",
+            "Flowers" to "a photo of flowers",
+            "Cats" to "a photo of a domestic cat",
+            "Dogs" to "a photo of a dog",
+            "Tigers" to "a photo of a tiger",
+            "Lions" to "a photo of a lion",
+            "Birds" to "a photo of a bird",
+            "Other Animals" to "a photo of a wild animal",
+            "City" to "a photo of buildings in a city",
+            "Cars & Roads" to "a photo of cars on a road",
+            "Beach" to "a photo of a sandy beach",
+            "Mountains" to "a photo of mountains",
+            "People" to "a photo of people",
+            "Autumn" to "a photo of autumn leaves",
+            "Screenshots" to "a screenshot of a phone or computer application",
+            "Documents" to "a photo of a printed document",
+            "Receipts" to "a photo of a shopping receipt",
+            "Text & Notes" to "a photo of handwritten notes",
+            "Memes" to "an internet meme with text",
+            "Art & Illustrations" to "a drawing or illustration",
+            "Sports" to "a photo of people playing sports",
+            "Interiors" to "a photo of a room indoors",
+            "Products" to "a product photo of an object",
         )
     }
 }

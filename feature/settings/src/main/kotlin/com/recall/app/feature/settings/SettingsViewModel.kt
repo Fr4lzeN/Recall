@@ -6,9 +6,9 @@ import androidx.work.WorkInfo
 import com.recall.app.core.database.dao.MediaItemDao
 import com.recall.app.core.ml.DeviceInfo
 import com.recall.app.core.ml.DeviceProfiler
+import com.recall.app.core.ml.EmbeddingModel
 import com.recall.app.core.ml.ModelProfile
 import com.recall.app.core.ml.ModelProfileSelector
-import com.recall.app.core.vector.VectorIndex
 import com.recall.app.core.media.scanner.MediaScanner
 import com.recall.app.core.database.ExcludedDirectoriesRepository
 import com.recall.app.core.worker.IndexingPipelineManager
@@ -28,9 +28,9 @@ class SettingsViewModel @Inject constructor(
     private val modelProfileSelector: ModelProfileSelector,
     private val deviceProfiler: DeviceProfiler,
     private val indexingPipelineManager: IndexingPipelineManager,
-    private val vectorIndex: VectorIndex,
     private val excludedDirectoriesRepository: ExcludedDirectoriesRepository,
     private val mediaScanner: MediaScanner,
+    embeddingModel: EmbeddingModel,
 ) : ViewModel() {
     val totalMedia: StateFlow<Int> = mediaItemDao.observeCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
@@ -39,6 +39,13 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val activeProfile: ModelProfile = modelProfileSelector.selectProfile()
+    val modelProfileName: String = embeddingModel.profileName
+    val modelInitializationError: String? = embeddingModel.initializationError
+    val modelStatus: String = when {
+        modelInitializationError != null -> "Unavailable: $modelInitializationError"
+        embeddingModel.modelId.startsWith("mock") -> "Demo model · semantic search is simulated"
+        else -> "${activeProfile.modelName} · ${embeddingModel.dimensions} dimensions"
+    }
     val deviceInfo: DeviceInfo = deviceProfiler.profile()
 
     val isIndexing: StateFlow<Boolean> = indexingPipelineManager.observePipelineStatus()
@@ -48,6 +55,20 @@ class SettingsViewModel @Inject constructor(
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val indexingError: StateFlow<String?> = indexingPipelineManager.observePipelineStatus()
+        .map { workInfos ->
+            val failure = workInfos.firstOrNull { it.state == WorkInfo.State.FAILED }
+                ?.outputData?.getString("error")
+            val failedPhotos = workInfos.filter { it.state == WorkInfo.State.SUCCEEDED }
+                .sumOf { it.outputData.getInt("failed", 0) }
+            failure ?: if (failedPhotos > 0) {
+                "$failedPhotos photos could not be indexed. Try indexing again."
+            } else {
+                null
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _exclusionStats = MutableStateFlow(ExclusionStats())
     val exclusionStats: StateFlow<ExclusionStats> = _exclusionStats.asStateFlow()
@@ -80,17 +101,7 @@ class SettingsViewModel @Inject constructor(
 
     fun clearIndex() {
         viewModelScope.launch {
-            vectorIndex.clear()
-            val ids = mediaItemDao.getAllActiveIds()
-            for (id in ids) {
-                mediaItemDao.markIndexed(
-                    id = id,
-                    isIndexed = false,
-                    version = 0,
-                    segmentId = 0,
-                    localIndex = 0,
-                )
-            }
+            indexingPipelineManager.clearIndex()
         }
     }
 }

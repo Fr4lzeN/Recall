@@ -75,7 +75,8 @@ class HnswIndex(
                 currentEp = greedyClosest(query, currentEp, layer)
             }
 
-            val ef = maxOf(efSearch, topK * 15)
+            val ef = maxOf(efSearch.toLong(), topK.toLong() * 15)
+                .coerceAtMost(nodes.size.toLong()).toInt()
             val candidates = searchLayer(query, setOf(currentEp), ef = ef, layer = 0)
             candidates
                 .take(topK)
@@ -176,7 +177,7 @@ class HnswIndex(
                         val n = nodes[nid] ?: return@mapNotNull null
                         nid to distanceVectors(neighbor.vector, n.vector)
                     }
-                    val pruned = selectNeighbors(vector, neighborCandidates, maxConn)
+                    val pruned = selectNeighbors(neighbor.vector, neighborCandidates, maxConn)
                     neighbor.neighbors[layer].clear()
                     neighbor.neighbors[layer].addAll(pruned)
                 }

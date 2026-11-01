@@ -10,7 +10,7 @@ class ModelProfileTest {
     fun lite_hasExpectedProperties() {
         assertEquals("Lite", ModelProfile.LITE.name)
         assertEquals(512, ModelProfile.LITE.dimensions)
-        assertEquals(QuantizationType.INT8, ModelProfile.LITE.quantization)
+        assertEquals(QuantizationType.FLOAT16, ModelProfile.LITE.quantization)
         assertEquals("models/mobileclip_s0_image_encoder_fp16.tflite", ModelProfile.LITE.imageModelFileName)
         assertNotNull(ModelProfile.LITE.textModelFileName)
         assertEquals("models/mobileclip_s0_text_encoder_fp16.tflite", ModelProfile.LITE.textModelFileName)
@@ -37,7 +37,7 @@ class ModelProfileTest {
     fun pro_hasExpectedProperties() {
         assertEquals("Pro", ModelProfile.PRO.name)
         assertEquals(512, ModelProfile.PRO.dimensions)
-        assertEquals(QuantizationType.FLOAT32, ModelProfile.PRO.quantization)
+        assertEquals(QuantizationType.FLOAT16, ModelProfile.PRO.quantization)
         assertEquals("models/mobileclip_s0_image_encoder_fp16.tflite", ModelProfile.PRO.imageModelFileName)
         assertNotNull(ModelProfile.PRO.textModelFileName)
         assertEquals(256, ModelProfile.PRO.inputImageSize)

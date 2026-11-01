@@ -36,7 +36,9 @@ class InMemoryVectorPostingStore : VectorPostingStore {
 
     override suspend fun insertAll(postings: List<VectorPosting>) {
         postings.forEach { posting ->
-            byMediaItem[posting.mediaItemId] = posting
+            byMediaItem.put(posting.mediaItemId, posting)?.let { previous ->
+                bySegment[previous.segmentId]?.removeAll { it.mediaItemId == posting.mediaItemId }
+            }
             bySegment.computeIfAbsent(posting.segmentId) { mutableListOf() }.add(posting)
         }
     }

@@ -47,6 +47,12 @@ interface MediaItemDao {
     @Query("UPDATE media_items SET is_deleted = 1 WHERE id IN (:ids)")
     suspend fun markDeleted(ids: List<Long>)
 
+    @Query(
+        "UPDATE media_items SET is_indexed = 0, embedding_version = NULL, " +
+            "segment_id = NULL, local_vector_index = NULL",
+    )
+    suspend fun markAllUnindexed()
+
     @Query("SELECT id FROM media_items WHERE is_deleted = 0")
     suspend fun getAllActiveIds(): List<Long>
 }

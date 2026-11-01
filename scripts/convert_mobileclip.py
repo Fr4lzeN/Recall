@@ -173,109 +173,108 @@ def convert_onnx_to_tflite(onnx_path, tflite_name):
     return tflite_out
 
 
-def find_float32_model(onnx_stem):
-    """Find the float32 TFLite model generated alongside the FP16 one."""
-    output_dir = WORK_DIR / f"tf_{onnx_stem}"
-    candidates = list(output_dir.rglob("*_float32.tflite"))
-    if not candidates:
-        candidates = [
-            f for f in output_dir.rglob("*.tflite")
-            if "float16" not in f.name
-        ]
-    return candidates[0] if candidates else None
-
-
 def validate_tflite(tflite_path, model_type="image", onnx_stem=None):
-    """Load TFLite model and print input/output details.
-
-    FP16 models may fail to allocate on desktop TFLite runtimes,
-    so we fall back to the float32 sibling for validation.
-    If both fail (e.g. text encoder with unsupported ops on desktop),
-    validation is skipped -- the model will still work on Android.
-    """
+    """Validate the exact exported file; an unsupported runtime is a failure."""
     import tensorflow as tf
 
     print(f"\n[→] Validating {tflite_path.name}...")
-
-    interpreter = None
-    validated_path = tflite_path
-
-    try:
-        interpreter = tf.lite.Interpreter(model_path=str(tflite_path))
-        interpreter.allocate_tensors()
-    except RuntimeError as e:
-        print(f"  FP16 model can't run on desktop runtime: {e}")
-        if onnx_stem:
-            f32 = find_float32_model(onnx_stem)
-            if f32:
-                try:
-                    interpreter = tf.lite.Interpreter(model_path=str(f32))
-                    interpreter.allocate_tensors()
-                    validated_path = f32
-                    print(f"  Using float32 sibling for validation")
-                except RuntimeError as e2:
-                    print(f"  Float32 sibling also failed: {e2}")
-                    interpreter = None
-
-    if interpreter is None:
-        print(f"  File size: {tflite_path.stat().st_size / 1024 / 1024:.1f} MB")
-        print(f"[⚠] Skipping runtime validation (desktop TFLite lacks some ops)")
-        print(f"    The model will work on Android with GPU delegate / NNAPI")
-        return None
-
+    interpreter = tf.lite.Interpreter(model_path=str(tflite_path))
+    interpreter.allocate_tensors()
     inputs = interpreter.get_input_details()
     outputs = interpreter.get_output_details()
-
-    for i, inp in enumerate(inputs):
-        print(f"  Input[{i}]:  name={inp['name']}, shape={inp['shape']}, dtype={inp['dtype']}")
-    for i, out in enumerate(outputs):
-        print(f"  Output[{i}]: name={out['name']}, shape={out['shape']}, dtype={out['dtype']}")
-
+    if len(inputs) != 1 or len(outputs) != 1:
+        raise ValueError("Expected one input and one embedding output")
+    actual = tuple(inputs[0]["shape"])
     if model_type == "image":
-        expected_shape = [1, 3, IMAGE_SIZE, IMAGE_SIZE]
-        alt_shape = [1, IMAGE_SIZE, IMAGE_SIZE, 3]
-        actual = list(inputs[0]["shape"])
-        assert actual == expected_shape or actual == alt_shape, (
-            f"Unexpected image input shape: {actual}"
-        )
+        if actual not in ((1, 3, IMAGE_SIZE, IMAGE_SIZE), (1, IMAGE_SIZE, IMAGE_SIZE, 3)):
+            raise ValueError(f"Unexpected image input shape: {actual}")
+        allowed_types = (np.float32, np.float16)
+    elif model_type == "text":
+        if actual != (1, CONTEXT_LENGTH):
+            raise ValueError(f"Unexpected text input shape: {actual}")
+        allowed_types = (np.int32, np.int64)
     else:
-        actual = list(inputs[0]["shape"])
-        assert actual == [1, CONTEXT_LENGTH], (
-            f"Unexpected text input shape: {actual}, expected [1, {CONTEXT_LENGTH}]"
-        )
-
-    out_shape = list(outputs[0]["shape"])
-    assert out_shape[-1] == EMBED_DIM, (
-        f"Unexpected embedding dim: {out_shape[-1]}, expected {EMBED_DIM}"
-    )
-
-    print(f"[✓] {validated_path.name} validated OK")
+        raise ValueError(f"Unknown model type: {model_type}")
+    if inputs[0]["dtype"] not in allowed_types:
+        raise ValueError(f"Unsupported {model_type} input dtype: {inputs[0]['dtype']}")
+    if tuple(outputs[0]["shape"]) != (1, EMBED_DIM):
+        raise ValueError(f"Unexpected embedding shape: {outputs[0]['shape']}")
+    if outputs[0]["dtype"] not in (np.float16, np.float32):
+        raise ValueError(f"Unsupported embedding dtype: {outputs[0]['dtype']}")
     return interpreter
 
 
+def _normalize_embedding(values):
+    values = np.asarray(values, dtype=np.float32).reshape(-1)
+    norm = np.linalg.norm(values)
+    if values.size != EMBED_DIM or not np.isfinite(values).all() or not np.isfinite(norm) or norm <= 0:
+        raise ValueError("Invalid embedding: expected 512 finite values with a positive norm")
+    return values / norm
+
+
+def _run_tflite(interpreter, values):
+    input_detail = interpreter.get_input_details()[0]
+    values = np.asarray(values)
+    shape = tuple(input_detail["shape"])
+    if values.ndim == 4 and values.shape != shape and shape[-1] == 3:
+        values = values.transpose(0, 2, 3, 1)
+    if values.shape != shape:
+        raise ValueError(f"Input shape mismatch: {values.shape} != {shape}")
+    interpreter.set_tensor(input_detail["index"], values.astype(input_detail["dtype"]))
+    interpreter.invoke()
+    return _normalize_embedding(interpreter.get_tensor(interpreter.get_output_details()[0]["index"]))
+
+
+def _assert_embedding_parity(reference, converted, label, min_cosine=0.99):
+    reference = _normalize_embedding(reference)
+    converted = _normalize_embedding(converted)
+    cosine = float(reference @ converted)
+    if cosine < min_cosine:
+        raise ValueError(f"{label} differs after conversion: cosine={cosine:.6f}, required>={min_cosine}")
+    return cosine
+
+
+def _assert_similarity_parity(pt_images, pt_texts, tf_images, tf_texts, max_error=0.03):
+    reference = np.asarray(pt_images) @ np.asarray(pt_texts).T
+    converted = np.asarray(tf_images) @ np.asarray(tf_texts).T
+    error = float(np.max(np.abs(reference - converted)))
+    if not np.isfinite(error) or error > max_error:
+        raise ValueError(f"Image/text similarities differ after conversion: max error={error:.6f}")
+    return error
+
+
 def sanity_check(model, preprocess, tokenizer, img_tflite, txt_tflite):
-    """Compare PyTorch and TFLite outputs for a simple test case."""
-    import tensorflow as tf
-    from PIL import Image
+    """Run both exported encoders and compare them with PyTorch."""
+    from PIL import Image, ImageDraw
 
-    print("\n[→] Running sanity check...")
-
-    test_img = Image.new("RGB", (IMAGE_SIZE, IMAGE_SIZE), color=(200, 100, 50))
-    test_text = "a warm orange photo"
-
+    image_interpreter = validate_tflite(img_tflite, model_type="image")
+    text_interpreter = validate_tflite(txt_tflite, model_type="text")
+    images = []
+    for size, color in [((320, 180), (200, 100, 50)), ((180, 320), (30, 80, 200))]:
+        image = Image.new("RGB", size, color=color)
+        ImageDraw.Draw(image).rectangle((size[0] // 4, size[1] // 4, size[0] * 3 // 4, size[1] * 3 // 4), fill=(40, 180, 60))
+        images.append(image)
+    texts = ["a warm orange photo", "a blue picture with a green rectangle", "кот на пляже", "семья на отдыхе"]
+    pt_images, tf_images, pt_texts, tf_texts = [], [], [], []
     with torch.no_grad():
-        img_tensor = preprocess(test_img).unsqueeze(0)
-        text_tokens = tokenizer([test_text])
-        pt_img_emb = model.encode_image(img_tensor)
-        pt_txt_emb = model.encode_text(text_tokens)
-        pt_img_emb = pt_img_emb / pt_img_emb.norm(dim=-1, keepdim=True)
-        pt_txt_emb = pt_txt_emb / pt_txt_emb.norm(dim=-1, keepdim=True)
-        pt_sim = (pt_img_emb @ pt_txt_emb.T).item()
-
-    print(f"  PyTorch cosine similarity: {pt_sim:.4f}")
-    print(f"  PyTorch image embedding shape: {pt_img_emb.shape}")
-    print(f"  PyTorch text embedding shape: {pt_txt_emb.shape}")
-    print(f"[✓] Sanity check complete")
+        for index, image in enumerate(images):
+            tensor = preprocess(image).unsqueeze(0)
+            reference = _normalize_embedding(model.encode_image(tensor).detach().cpu().numpy())
+            converted = _run_tflite(image_interpreter, tensor.detach().cpu().numpy())
+            cosine = _assert_embedding_parity(reference, converted, f"Image {index}")
+            print(f"  Image {index} PyTorch/TFLite cosine: {cosine:.6f}")
+            pt_images.append(reference)
+            tf_images.append(converted)
+        for text in texts:
+            tokens = tokenizer([text])
+            reference = _normalize_embedding(model.encode_text(tokens).detach().cpu().numpy())
+            converted = _run_tflite(text_interpreter, tokens.detach().cpu().numpy())
+            cosine = _assert_embedding_parity(reference, converted, f"Text {text!r}")
+            print(f"  Text {text!r} PyTorch/TFLite cosine: {cosine:.6f}")
+            pt_texts.append(reference)
+            tf_texts.append(converted)
+    error = _assert_similarity_parity(pt_images, pt_texts, tf_images, tf_texts)
+    print(f"[✓] Both exported encoders ran successfully; maximum similarity error: {error:.6f}")
 
 
 def copy_tokenizer_vocab():
@@ -300,9 +299,7 @@ def copy_tokenizer_vocab():
             pass
 
     if not candidates:
-        print("[!] Could not find bpe_simple_vocab_16e6.txt.gz in mobileclip/open_clip packages")
-        print("    Download manually from: https://github.com/openai/CLIP/blob/main/clip/bpe_simple_vocab_16e6.txt.gz")
-        return
+        raise FileNotFoundError("CLIP BPE vocabulary not found in mobileclip/open_clip packages")
 
     tokenizer_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(candidates[0], dest)
@@ -321,9 +318,6 @@ def main():
 
     img_tflite = convert_onnx_to_tflite(img_onnx, "mobileclip_s0_image_encoder_fp16.tflite")
     txt_tflite = convert_onnx_to_tflite(txt_onnx, "mobileclip_s0_text_encoder_fp16.tflite")
-
-    validate_tflite(img_tflite, model_type="image", onnx_stem="mobileclip_s0_image_encoder")
-    validate_tflite(txt_tflite, model_type="text", onnx_stem="mobileclip_s0_text_encoder")
 
     copy_tokenizer_vocab()
 

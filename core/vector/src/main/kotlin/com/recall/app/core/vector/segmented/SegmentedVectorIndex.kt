@@ -4,6 +4,7 @@ import com.recall.app.core.vector.PersistableVectorIndex
 import com.recall.app.core.vector.SearchResult
 import com.recall.app.core.vector.bitmap.DeletionBitmap
 import com.recall.app.core.vector.hnsw.HnswIndex
+import com.recall.app.core.vector.linear.LinearScanIndex
 import com.recall.app.core.vector.segment.SegmentHnswSearch
 import com.recall.app.core.vector.segment.SegmentInfo
 import com.recall.app.core.vector.segment.SegmentManifest
@@ -12,7 +13,6 @@ import com.recall.app.core.vector.segment.SegmentWriter
 import com.recall.app.core.vector.segment.VectorPosting
 import com.recall.app.core.vector.segment.VectorPostingStore
 import java.io.File
-import java.util.PriorityQueue
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
@@ -27,6 +27,7 @@ class SegmentedVectorIndex private constructor(
     private val m: Int,
     private val efConstruction: Int,
     private val efSearch: Int,
+    private val exactSearchThreshold: Int,
 ) : PersistableVectorIndex {
 
     private data class FrozenSegment(
@@ -51,7 +52,11 @@ class SegmentedVectorIndex private constructor(
             m: Int = 16,
             efConstruction: Int = 200,
             efSearch: Int = 50,
+            exactSearchThreshold: Int = 2000,
         ): SegmentedVectorIndex {
+            require(dimensions > 0)
+            require(flushThreshold > 0)
+            require(exactSearchThreshold >= 0)
             segmentsDir.mkdirs()
             val index = SegmentedVectorIndex(
                 dimensions = dimensions,
@@ -62,6 +67,7 @@ class SegmentedVectorIndex private constructor(
                 m = m,
                 efConstruction = efConstruction,
                 efSearch = efSearch,
+                exactSearchThreshold = exactSearchThreshold,
             )
             index.loadFrozenSegments()
             return index
@@ -83,25 +89,56 @@ class SegmentedVectorIndex private constructor(
                     segment.localIndexToMediaId[posting.localIndex] = posting.mediaItemId
                 }
             }
+            // Postings are the authoritative live set; deleted positions have no posting.
+            segment.localIndexToMediaId.forEachIndexed { localIndex, mediaId ->
+                if (mediaId < 0L) segment.deletionBitmap.markDeleted(localIndex)
+            }
+            manifest.updateDeletedCount(info.id, segment.deletionBitmap.deletedCount())
         }
     }
 
     override suspend fun add(id: Long, vector: FloatArray) {
+        require(id >= 0L)
+        require(vector.size == dimensions) { "Expected $dimensions dimensions, got ${vector.size}" }
         lock.write {
             kotlinx.coroutines.runBlocking {
                 staging.add(id, vector)
+                retireFrozenVersionsUnlocked(setOf(id))
                 maybeFlushStagingUnlocked()
             }
         }
     }
 
     override suspend fun addBatch(entries: List<Pair<Long, FloatArray>>) {
+        entries.forEach { (id, vector) ->
+            require(id >= 0L)
+            require(vector.size == dimensions) { "Expected $dimensions dimensions, got ${vector.size}" }
+        }
         lock.write {
             kotlinx.coroutines.runBlocking {
                 staging.addBatch(entries)
+                retireFrozenVersionsUnlocked(entries.mapTo(mutableSetOf()) { it.first })
                 maybeFlushStagingUnlocked()
             }
         }
+    }
+
+    private suspend fun retireFrozenVersionsUnlocked(ids: Set<Long>) {
+        if (ids.isEmpty()) return
+        frozenSegments.values.forEach { segment ->
+            var changed = false
+            segment.localIndexToMediaId.forEachIndexed { localIndex, mediaId ->
+                if (mediaId in ids && !segment.deletionBitmap.isDeleted(localIndex)) {
+                    segment.deletionBitmap.markDeleted(localIndex)
+                    segment.localIndexToMediaId[localIndex] = -1L
+                    changed = true
+                }
+            }
+            if (changed) {
+                manifest.updateDeletedCount(segment.info.id, segment.deletionBitmap.deletedCount())
+            }
+        }
+        postingStore.deleteByMediaItems(ids.toList())
     }
 
     private suspend fun maybeFlushStagingUnlocked() {
@@ -154,70 +191,65 @@ class SegmentedVectorIndex private constructor(
         require(query.size == dimensions) { "Expected $dimensions dimensions, got ${query.size}" }
         if (topK <= 0) return emptyList()
 
-        val frozenResults = lock.read {
-            val merged = PriorityQueue<SearchResult>(compareByDescending { it.distance })
-            frozenSegments.values.forEach { segment ->
-                SegmentHnswSearch.search(
-                    reader = segment.reader,
-                    deletionBitmap = segment.deletionBitmap,
-                    query = query,
-                    localIndexToMediaId = segment.localIndexToMediaId,
-                    topK = topK,
-                    efSearch = efSearch,
-                ).forEach { result -> addToTopK(merged, result, topK) }
+        return lock.read {
+            kotlinx.coroutines.runBlocking {
+                if (size() <= exactSearchThreshold) {
+                    val exact = LinearScanIndex(dimensions)
+                    val entries = LinkedHashMap<Long, FloatArray>()
+                    frozenSegments.values.forEach { segment ->
+                        segment.localIndexToMediaId.forEachIndexed { localIndex, mediaId ->
+                            if (mediaId >= 0L && !segment.deletionBitmap.isDeleted(localIndex)) {
+                                entries[mediaId] = segment.reader.readVector(localIndex)
+                            }
+                        }
+                    }
+                    staging.exportEntries().forEach { (id, vector) -> entries[id] = vector }
+                    exact.addBatch(entries.map { it.key to it.value })
+                    exact.search(query, topK)
+                } else {
+                    val byId = LinkedHashMap<Long, SearchResult>()
+                    frozenSegments.values.forEach { segment ->
+                        SegmentHnswSearch.search(
+                            reader = segment.reader,
+                            deletionBitmap = segment.deletionBitmap,
+                            query = query,
+                            localIndexToMediaId = segment.localIndexToMediaId,
+                            topK = topK,
+                            efSearch = efSearch,
+                        ).forEach { result -> byId[result.id] = result }
+                    }
+                    staging.search(query, topK).forEach { result -> byId[result.id] = result }
+                    byId.values.sortedByDescending { it.score }.take(topK)
+                }
             }
-            merged
-        }
-
-        val stagingResults = lock.read {
-            kotlinx.coroutines.runBlocking { staging.search(query, topK) }
-        }
-
-        val merged = PriorityQueue<SearchResult>(compareByDescending { it.distance })
-        frozenResults.forEach { addToTopK(merged, it, topK) }
-        stagingResults.forEach { addToTopK(merged, it, topK) }
-        return merged.sortedByDescending { it.score }
-    }
-
-    private fun addToTopK(heap: PriorityQueue<SearchResult>, result: SearchResult, topK: Int) {
-        heap.add(result)
-        if (heap.size > topK) {
-            heap.poll()
         }
     }
 
     override suspend fun getVector(id: Long): FloatArray? {
-        staging.getVector(id)?.let { return it }
-        val posting = postingStore.getByMediaItem(id) ?: return null
         return lock.read {
-            val segment = frozenSegments[posting.segmentId] ?: return@read null
-            if (segment.deletionBitmap.isDeleted(posting.localIndex)) return@read null
-            segment.reader.readVector(posting.localIndex).copyOf()
+            kotlinx.coroutines.runBlocking {
+                staging.getVector(id)?.let { return@runBlocking it }
+                val posting = postingStore.getByMediaItem(id) ?: return@runBlocking null
+                val segment = frozenSegments[posting.segmentId] ?: return@runBlocking null
+                if (posting.localIndex !in segment.localIndexToMediaId.indices ||
+                    segment.localIndexToMediaId[posting.localIndex] != id ||
+                    segment.deletionBitmap.isDeleted(posting.localIndex)
+                ) return@runBlocking null
+                segment.reader.readVector(posting.localIndex)
+            }
         }
     }
 
     override suspend fun remove(id: Long) {
         lock.write {
-            if (staging.contains(id)) {
+            kotlinx.coroutines.runBlocking {
                 staging.remove(id)
-                postingStore.deleteByMediaItems(listOf(id))
-                return@write
+                retireFrozenVersionsUnlocked(setOf(id))
             }
-
-            val posting = postingStore.getByMediaItem(id) ?: return@write
-            val segment = frozenSegments[posting.segmentId] ?: return@write
-            segment.deletionBitmap.markDeleted(posting.localIndex)
-            manifest.updateDeletedCount(
-                segmentId = posting.segmentId,
-                deletedCount = segment.deletionBitmap.deletedCount(),
-            )
-            postingStore.deleteByMediaItems(listOf(id))
         }
     }
 
-    override suspend fun contains(id: Long): Boolean = lock.read {
-        staging.contains(id) || postingStore.getByMediaItem(id) != null
-    }
+    override suspend fun contains(id: Long): Boolean = getVector(id) != null
 
     override fun size(): Int = lock.read {
         frozenSegments.values.sumOf { it.deletionBitmap.liveCount() } + staging.size()
@@ -227,13 +259,17 @@ class SegmentedVectorIndex private constructor(
 
     override fun clear() {
         lock.write {
+            kotlinx.coroutines.runBlocking {
+                manifest.getActiveSegments().forEach { info ->
+                    val ids = postingStore.getBySegment(info.id).map { it.mediaItemId }
+                    postingStore.deleteByMediaItems(ids)
+                    manifest.removeSegment(info.id)
+                }
+            }
             staging.clear()
             frozenSegments.values.forEach { it.reader.close() }
             frozenSegments.clear()
             segmentsDir.listFiles()?.forEach { it.delete() }
-            kotlinx.coroutines.runBlocking {
-                manifest.getActiveSegments().forEach { manifest.removeSegment(it.id) }
-            }
         }
     }
 

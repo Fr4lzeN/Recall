@@ -14,11 +14,13 @@ data class ModelProfile(
     val minRamMb: Int,
     val expectedLatencyMs: Long,
 ) {
+    val modelName: String get() = "MobileCLIP-S0 FP16"
+
     companion object {
         val LITE = ModelProfile(
             name = "Lite",
             dimensions = 512,
-            quantization = QuantizationType.INT8,
+            quantization = QuantizationType.FLOAT16,
             imageModelFileName = "models/mobileclip_s0_image_encoder_fp16.tflite",
             textModelFileName = "models/mobileclip_s0_text_encoder_fp16.tflite",
             inputImageSize = 256,
@@ -44,7 +46,7 @@ data class ModelProfile(
         val PRO = ModelProfile(
             name = "Pro",
             dimensions = 512,
-            quantization = QuantizationType.FLOAT32,
+            quantization = QuantizationType.FLOAT16,
             imageModelFileName = "models/mobileclip_s0_image_encoder_fp16.tflite",
             textModelFileName = "models/mobileclip_s0_text_encoder_fp16.tflite",
             inputImageSize = 256,
