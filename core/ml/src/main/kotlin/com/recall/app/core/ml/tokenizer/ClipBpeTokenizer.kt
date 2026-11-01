@@ -10,6 +10,14 @@ import java.util.zip.GZIPInputStream
 import java.util.concurrent.ConcurrentHashMap
 import java.util.Locale
 
+data class ClipTokenizationDiagnostics(
+    val normalizedText: String,
+    val tokenIds: IntArray,
+    val tokenPieces: List<String>,
+    val originalTokenCount: Int,
+    val truncated: Boolean,
+)
+
 /**
  * Kotlin port of OpenAI CLIP's simple BPE tokenizer.
  *
@@ -25,12 +33,38 @@ class ClipBpeTokenizer private constructor(
     private val contextLength: Int,
 ) {
     private val cache = ConcurrentHashMap<String, String>()
+    private val decoder by lazy { encoder.entries.associate { (piece, id) -> id to piece } }
     private val pattern: Pattern = Pattern.compile(
         "'s|'t|'re|'ve|'m|'ll|'d|[\\p{L}]+|[\\p{N}]|[^\\s\\p{L}\\p{N}]+",
         Pattern.CASE_INSENSITIVE,
     )
 
-    fun encode(text: String): IntArray {
+    fun encode(text: String): IntArray = pack(tokenize(text).tokenIds)
+
+    fun encodeWithDiagnostics(text: String): ClipTokenizationDiagnostics {
+        val tokenization = tokenize(text)
+        val tokenIds = pack(tokenization.tokenIds)
+        val endIndex = minOf(tokenization.tokenIds.size, contextLength - 2) + 1
+        val pieces = tokenIds.mapIndexed { position, id ->
+            when {
+                position == 0 -> "<SOT>"
+                position == endIndex -> "<EOT>"
+                position > endIndex -> "<PAD>"
+                else -> decoder[id] ?: "<UNKNOWN:$id>"
+            }
+        }
+        return ClipTokenizationDiagnostics(
+            normalizedText = tokenization.normalizedText,
+            tokenIds = tokenIds,
+            tokenPieces = pieces,
+            originalTokenCount = tokenization.tokenIds.size,
+            truncated = tokenization.tokenIds.size > contextLength - 2,
+        )
+    }
+
+    private data class Tokenization(val normalizedText: String, val tokenIds: List<Int>)
+
+    private fun tokenize(text: String): Tokenization {
         val bpeTokens = mutableListOf<Int>()
         val cleanedText = text.lowercase(Locale.ROOT).trim()
         val matcher = pattern.matcher(cleanedText)
@@ -50,6 +84,10 @@ class ClipBpeTokenizer private constructor(
             }
         }
 
+        return Tokenization(cleanedText, bpeTokens)
+    }
+
+    private fun pack(bpeTokens: List<Int>): IntArray {
         val result = IntArray(contextLength)
         result[0] = SOT_TOKEN
         val maxBpeTokens = contextLength - 2

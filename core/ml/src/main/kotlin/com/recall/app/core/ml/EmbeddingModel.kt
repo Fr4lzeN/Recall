@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 interface EmbeddingModel {
     suspend fun embedImage(bitmap: Bitmap): FloatArray
     suspend fun embedText(text: String): FloatArray
+    suspend fun embedTextWithDiagnostics(text: String): TextEmbeddingDiagnosticResult =
+        TextEmbeddingDiagnosticResult(vector = embedText(text))
     val dimensions: Int
     val profileName: String
     val modelName: String get() = profileName

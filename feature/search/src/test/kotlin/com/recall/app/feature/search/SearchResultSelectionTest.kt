@@ -1,6 +1,7 @@
 package com.recall.app.feature.search
 
 import com.recall.app.core.vector.SearchResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -81,6 +82,67 @@ class SearchResultSelectionTest {
             loadMedia = { ids -> ids.map { media(it) } },
         )
         assertEquals(listOf(3L), results.map { it.mediaId })
+    }
+
+    @Test
+    fun `observer sees precise decisions before filters without changing results`() = runTest {
+        val candidates = listOf(
+            hit(1, Float.NaN), hit(2, 0.1f), hit(3, 0.9f), hit(3, 0.8f),
+            hit(4, 0.7f), hit(5, 0.6f), hit(6, 0.5f), hit(-1, 0.4f), hit(8, 0.3f),
+        )
+        val decisions = mutableListOf<String>()
+        val observer = object : SearchSelectionObserver {
+            override fun onCandidate(rank: Int, result: SearchResult, media: SearchableMedia?, disposition: String) {
+                decisions += disposition
+            }
+        }
+        val result = SearchResultSelection.collect(
+            indexSize = candidates.size,
+            minSimilarity = 0.2f,
+            excludedBucketIds = setOf("excluded"),
+            searchCandidates = { candidates },
+            loadMedia = { ids -> ids.filter { it != 6L }.map { media(it, if (it == 5L) "excluded" else "allowed").copy(isDeleted = it == 4L) } },
+            limit = candidates.size,
+            observer = observer,
+        )
+        assertEquals(listOf(3L, 8L), result.map { it.mediaId })
+        assertEquals(listOf("invalid_score", "below_similarity", "displayed", "duplicate", "deleted",
+            "excluded_directory", "missing_metadata", "invalid_id", "displayed"), decisions)
+    }
+
+    @Test
+    fun `observer failure cannot turn successful search into an error`() = runTest {
+        val results = SearchResultSelection.collect(
+            indexSize = 1,
+            minSimilarity = 0.2f,
+            excludedBucketIds = emptySet(),
+            searchCandidates = { listOf(hit(1, 0.9f)) },
+            loadMedia = { listOf(media(1)) },
+            observer = object : SearchSelectionObserver {
+                override fun onRound(requested: Int, candidates: List<SearchResult>) = error("recording failed")
+                override fun onCandidate(rank: Int, result: SearchResult, media: SearchableMedia?, disposition: String) = error("recording failed")
+            },
+        )
+        assertEquals(listOf(1L), results.map { it.mediaId })
+    }
+
+    @Test
+    fun `observer cancellation propagates`() = runTest {
+        var cancelled = false
+        try {
+            SearchResultSelection.collect(
+                indexSize = 1, minSimilarity = 0.2f, excludedBucketIds = emptySet(),
+                searchCandidates = { listOf(hit(1, 0.9f)) }, loadMedia = { listOf(media(1)) },
+                observer = object : SearchSelectionObserver {
+                    override fun onRound(requested: Int, candidates: List<SearchResult>) {
+                        throw CancellationException("request cancelled")
+                    }
+                },
+            )
+        } catch (_: CancellationException) {
+            cancelled = true
+        }
+        assertTrue(cancelled)
     }
 
     private fun hit(id: Long, score: Float) = SearchResult(id, score, 1f - score)

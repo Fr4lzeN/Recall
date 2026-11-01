@@ -73,6 +73,19 @@ class TFLiteEmbeddingModel(
             textEncoder.embed(tokens)
         }
 
+    override suspend fun embedTextWithDiagnostics(text: String): TextEmbeddingDiagnosticResult =
+        withContext(Dispatchers.Default) {
+            val tokens = tokenizer.encodeWithDiagnostics(text)
+            TextEmbeddingDiagnosticResult(
+                vector = textEncoder.embed(tokens.tokenIds),
+                normalizedText = tokens.normalizedText,
+                tokenIds = tokens.tokenIds,
+                tokenPieces = tokens.tokenPieces,
+                originalTokenCount = tokens.originalTokenCount,
+                truncated = tokens.truncated,
+            )
+        }
+
     override fun close() {
         imageEncoder.close()
         textEncoder.close()

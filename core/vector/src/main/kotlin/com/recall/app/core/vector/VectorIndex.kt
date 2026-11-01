@@ -6,6 +6,12 @@ data class SearchResult(
     val distance: Float,   // raw distance value
 )
 
+data class VectorIndexDiagnosticSnapshot(
+    val entries: List<Pair<Long, FloatArray>>,
+    val searchMethod: String,
+    val revision: Long,
+)
+
 interface VectorIndex {
     suspend fun add(id: Long, vector: FloatArray)
     suspend fun addBatch(entries: List<Pair<Long, FloatArray>>)
@@ -16,4 +22,6 @@ interface VectorIndex {
     fun size(): Int
     fun dimensions(): Int
     fun clear()
+    suspend fun diagnosticSnapshot(maxVectors: Int = 5000): VectorIndexDiagnosticSnapshot? = null
+    fun diagnosticRevision(): Long? = null
 }

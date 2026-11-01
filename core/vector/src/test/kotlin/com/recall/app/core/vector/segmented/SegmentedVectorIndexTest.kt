@@ -177,6 +177,28 @@ class SegmentedVectorIndexTest {
         dir.deleteRecursively()
     }
 
+    @Test
+    fun diagnosticSnapshotIsDetachedBoundedAndTracksLiveRevisions() = runTest {
+        val dir = createTempDir()
+        val index = SegmentedVectorIndex.open(2, dir, InMemorySegmentManifest(), InMemoryVectorPostingStore())
+        index.add(1L, floatArrayOf(1f, 0f))
+        index.persist()
+        index.add(2L, floatArrayOf(0f, 1f))
+        val snapshot = index.diagnosticSnapshot(2)!!
+        assertEquals(setOf(1L, 2L), snapshot.entries.map { it.first }.toSet())
+        assertEquals("exact_linear_scan", snapshot.searchMethod)
+        assertEquals(snapshot.revision, index.diagnosticRevision())
+        assertEquals(null, index.diagnosticSnapshot(1))
+        snapshot.entries.first { it.first == 2L }.second[0] = 99f
+        assertEquals(0f, index.getVector(2L)!![0], 0f)
+        index.remove(1L)
+        assertTrue(index.diagnosticRevision()!! > snapshot.revision)
+        assertEquals(listOf(2L), index.diagnosticSnapshot(2)!!.entries.map { it.first })
+        index.clear()
+        assertTrue(index.diagnosticSnapshot(2)!!.entries.isEmpty())
+        dir.deleteRecursively()
+    }
+
     private fun createTempDir(): File {
         val dir = File(System.getProperty("java.io.tmpdir"), "segmented-index-${System.nanoTime()}")
         dir.mkdirs()

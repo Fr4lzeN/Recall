@@ -2,6 +2,7 @@ package com.recall.app.core.vector.segmented
 
 import com.recall.app.core.vector.PersistableVectorIndex
 import com.recall.app.core.vector.SearchResult
+import com.recall.app.core.vector.VectorIndexDiagnosticSnapshot
 import com.recall.app.core.vector.bitmap.DeletionBitmap
 import com.recall.app.core.vector.hnsw.HnswIndex
 import com.recall.app.core.vector.linear.LinearScanIndex
@@ -41,6 +42,7 @@ class SegmentedVectorIndex private constructor(
     private val staging = HnswIndex(dimensions, m, efConstruction, efSearch)
     private val frozenSegments = LinkedHashMap<Long, FrozenSegment>()
     private val nextSegmentId = AtomicLong(System.currentTimeMillis())
+    private val revision = AtomicLong(0)
 
     companion object {
         suspend fun open(
@@ -101,6 +103,7 @@ class SegmentedVectorIndex private constructor(
         require(id >= 0L)
         require(vector.size == dimensions) { "Expected $dimensions dimensions, got ${vector.size}" }
         lock.write {
+            revision.incrementAndGet()
             kotlinx.coroutines.runBlocking {
                 staging.add(id, vector)
                 retireFrozenVersionsUnlocked(setOf(id))
@@ -115,6 +118,7 @@ class SegmentedVectorIndex private constructor(
             require(vector.size == dimensions) { "Expected $dimensions dimensions, got ${vector.size}" }
         }
         lock.write {
+            revision.incrementAndGet()
             kotlinx.coroutines.runBlocking {
                 staging.addBatch(entries)
                 retireFrozenVersionsUnlocked(entries.mapTo(mutableSetOf()) { it.first })
@@ -242,6 +246,7 @@ class SegmentedVectorIndex private constructor(
 
     override suspend fun remove(id: Long) {
         lock.write {
+            revision.incrementAndGet()
             kotlinx.coroutines.runBlocking {
                 staging.remove(id)
                 retireFrozenVersionsUnlocked(setOf(id))
@@ -259,6 +264,7 @@ class SegmentedVectorIndex private constructor(
 
     override fun clear() {
         lock.write {
+            revision.incrementAndGet()
             kotlinx.coroutines.runBlocking {
                 manifest.getActiveSegments().forEach { info ->
                     val ids = postingStore.getBySegment(info.id).map { it.mediaItemId }
@@ -280,6 +286,29 @@ class SegmentedVectorIndex private constructor(
                     flushStagingUnlocked()
                 }
             }
+        }
+    }
+
+    override fun diagnosticRevision(): Long = lock.read { revision.get() }
+
+    override suspend fun diagnosticSnapshot(maxVectors: Int): VectorIndexDiagnosticSnapshot? = lock.read {
+        require(maxVectors >= 0)
+        if (size() > maxVectors) return@read null
+        kotlinx.coroutines.runBlocking {
+            val entries = LinkedHashMap<Long, FloatArray>()
+            frozenSegments.values.forEach { segment ->
+                segment.localIndexToMediaId.forEachIndexed { localIndex, mediaId ->
+                    if (mediaId >= 0 && !segment.deletionBitmap.isDeleted(localIndex)) {
+                        entries[mediaId] = segment.reader.readVector(localIndex)
+                    }
+                }
+            }
+            staging.exportEntries().forEach { (id, vector) -> entries[id] = vector.copyOf() }
+            VectorIndexDiagnosticSnapshot(
+                entries = entries.map { it.key to it.value },
+                searchMethod = if (entries.size <= exactSearchThreshold) "exact_linear_scan" else "hnsw_segments",
+                revision = revision.get(),
+            )
         }
     }
 }
